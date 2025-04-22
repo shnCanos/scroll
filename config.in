@@ -1,4 +1,4 @@
-# Default config for sway
+# Default config for scroll
 #
 # Copy this to ~/.config/sway/config and edit it to your liking.
 #
@@ -9,19 +9,19 @@
 # Logo key. Use Mod1 for Alt.
 set $mod Mod4
 # Home row direction keys, like vim
-set $left h
-set $down j
-set $up k
-set $right l
+set $left Left
+set $down Down
+set $up Up
+set $right Right
 # Your preferred terminal emulator
-set $term foot
+set $term kitty
 # Your preferred application launcher
 set $menu wmenu-run
 
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in @datadir@/backgrounds/sway/)
-output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
+# output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 #
 # Example configuration:
 #
@@ -56,6 +56,25 @@ output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 # You can get the names of your inputs by running: swaymsg -t get_inputs
 # Read `man 5 sway-input` for more information about this section.
 
+### Windows defaults
+default_border pixel 2
+gaps inner 4
+gaps outer 20
+client.focused #15439e #000000 #e0e0e0 #2e9ef4 #15439e
+client.focused_inactive #595959 #000000 #e0e0e0 #2e9ef4 #595959
+client.unfocused #595959 #000000 #e0e0e0 #2e9ef4 #595959
+
+# Idle inhibit for fullscreen windows
+for_window [all] inhibit_idle fullscreen
+
+# Layout settings
+layout_default_width 0.5
+layout_default_height 1.0
+layout_widths [0.33333333 0.5 0.666666667 1.0]
+layout_heights [0.33333333 0.5 0.666666667 1.0]
+
+fullscreen_movefocus true
+
 ### Key bindings
 #
 # Basics:
@@ -81,6 +100,10 @@ output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
 
     # Exit sway (logs you out of your Wayland session)
     bindsym $mod+Shift+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -B 'Yes, exit sway' 'swaymsg exit'
+
+    # Layout mode
+    bindsym $mod+bracketleft set_mode h
+    bindsym $mod+bracketright set_mode v
 #
 # Moving around:
 #
@@ -89,22 +112,28 @@ output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
     bindsym $mod+$down focus down
     bindsym $mod+$up focus up
     bindsym $mod+$right focus right
-    # Or use $mod+[up|down|left|right]
-    bindsym $mod+Left focus left
-    bindsym $mod+Down focus down
-    bindsym $mod+Up focus up
-    bindsym $mod+Right focus right
+    bindsym $mod+home focus beginning
+    bindsym $mod+end focus end
+    # Move the focused window with the same, but add Ctrl
+    bindsym $mod+Ctrl+$left move left
+    bindsym $mod+Ctrl+$down move down
+    bindsym $mod+Ctrl+$up move up
+    bindsym $mod+Ctrl+$right move right
+    bindsym $mod+Ctrl+home move beginning
+    bindsym $mod+Ctrl+end move end
+    # nomode
+    bindsym $mod+Alt+$left move left nomode
+    bindsym $mod+Alt+$down move down nomode
+    bindsym $mod+Alt+$up move up nomode
+    bindsym $mod+Alt+$right move right nomode
+    bindsym $mod+Alt+home move beginning nomode
+    bindsym $mod+Alt+end move end nomode
 
-    # Move the focused window with the same, but add Shift
-    bindsym $mod+Shift+$left move left
-    bindsym $mod+Shift+$down move down
-    bindsym $mod+Shift+$up move up
-    bindsym $mod+Shift+$right move right
-    # Ditto, with arrow keys
-    bindsym $mod+Shift+Left move left
-    bindsym $mod+Shift+Down move down
-    bindsym $mod+Shift+Up move up
-    bindsym $mod+Shift+Right move right
+    # Focus other monitors
+    bindsym $mod+Shift+$left focus output left
+    bindsym $mod+Shift+$down focus output down
+    bindsym $mod+Shift+$up focus output up
+    bindsym $mod+Shift+$right focus output right
 #
 # Workspaces:
 #
@@ -132,31 +161,56 @@ output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
     bindsym $mod+Shift+0 move container to workspace number 10
     # Note: workspaces can have any name you want, not just numbers.
     # We just use 1-10 as the default.
+
+    bindsym $mod+Ctrl+1 move workspace to output left
+    bindsym $mod+Ctrl+2 move workspace to output right
+
+# Scaling
+    # Workspace
+    bindsym $mod+Shift+comma scale_workspace incr -0.05
+    bindsym --whole-window $mod+Shift+button4 scale_workspace incr -0.05
+    bindsym $mod+Shift+period scale_workspace incr 0.05
+    bindsym --whole-window $mod+Shift+button5 scale_workspace incr 0.05
+    bindsym $mod+Shift+Ctrl+period scale_workspace reset
+
+    # Overview
+    bindsym --no-repeat $mod+tab scale_workspace overview
+    bindsym --whole-window button8 scale_workspace overview
+
+    # Jump
+    # jump_labels_color #9e1530FF
+    # jump_labels_background #15309eFF
+    # jump_labels_scale 0.9
+    # jump_labels_keys asdf
+    bindsym --no-repeat $mod+slash jump
+
+    # Content
+    bindsym $mod+comma scale_content incr -0.05
+    bindsym --whole-window $mod+button4 scale_content incr -0.05
+    bindsym $mod+period scale_content incr 0.05
+    bindsym --whole-window $mod+button5 scale_content incr 0.05
+    bindsym $mod+Ctrl+period scale_content reset
+
 #
 # Layout stuff:
 #
-    # You can "split" the current object of your focus with
-    # $mod+b or $mod+v, for horizontal and vertical splits
-    # respectively.
-    bindsym $mod+b splith
-    bindsym $mod+v splitv
-
-    # Switch the current container between different layout styles
-    bindsym $mod+s layout stacking
-    bindsym $mod+w layout tabbed
-    bindsym $mod+e layout toggle split
-
     # Make the current focus fullscreen
     bindsym $mod+f fullscreen
+    bindsym $mod+Ctrl+f fullscreen global
 
     # Toggle the current focus between tiling and floating mode
-    bindsym $mod+Shift+space floating toggle
+    bindsym $mod+y focus mode_toggle
+    # Float a window
+    bindsym $mod+Shift+f floating toggle
 
-    # Swap focus between the tiling area and the floating area
-    bindsym $mod+space focus mode_toggle
+    # Toggle sticky
+    bindsym $mod+a sticky toggle
 
-    # Move focus to the parent container
-    bindsym $mod+a focus parent
+    # Marks
+    # bindsym $mod+m exec sway-mark-toggle.sh
+    # bindsym $mod+Shift+m exec sway-mark-remove.sh
+    # bindsym $mod+apostrophe exec sway-mark-switch.sh
+
 #
 # Scratchpad:
 #
@@ -164,35 +218,135 @@ output * bg @datadir@/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
     # You can send windows there and get them back later.
 
     # Move the currently focused window to the scratchpad
-    bindsym $mod+Shift+minus move scratchpad
+    bindsym $mod+Shift+z move scratchpad
 
     # Show the next scratchpad window or hide the focused scratchpad window.
     # If there are multiple scratchpad windows, this command cycles through them.
-    bindsym $mod+minus scratchpad show
+    bindsym $mod+z scratchpad show
+
+#
+# Mode modifiers
+#
+mode "modifiers" {
+    bindsym $right set_mode after; mode default 
+    bindsym $left set_mode before; mode default 
+    bindsym home set_mode beginning; mode default 
+    bindsym end set_mode end; mode default 
+    bindsym $up set_mode focus; mode default 
+    bindsym $down set_mode nofocus; mode default 
+    bindsym h set_mode center_horiz; mode default 
+    bindsym Shift+h set_mode nocenter_horiz; mode default 
+    bindsym v set_mode center_vert; mode default 
+    bindsym Shift+v set_mode nocenter_vert; mode default 
+    bindsym r set_mode reorder_auto; mode default 
+    bindsym Shift+r set_mode noreorder_auto; mode default 
+
+    # Return to default mode
+    bindsym Escape mode "default"
+}
+bindsym $mod+backslash mode "modifiers"
+
 #
 # Resizing containers:
 #
+bindsym $mod+minus cycle_size h prev
+bindsym $mod+equal cycle_size h next
+bindsym $mod+Shift+minus cycle_size v prev
+bindsym $mod+Shift+equal cycle_size v next
+
+mode "setsizeh" {
+    bindsym 1 set_size h 0.125
+    bindsym 2 set_size h 0.1666666667
+    bindsym 3 set_size h 0.25
+    bindsym 4 set_size h 0.333333333
+    bindsym 5 set_size h 0.375
+    bindsym 6 set_size h 0.5
+    bindsym 7 set_size h 0.625
+    bindsym 8 set_size h 0.6666666667
+    bindsym 9 set_size h 0.75
+    bindsym 0 set_size h 0.833333333
+    bindsym minus set_size h 0.875
+    bindsym equal set_size h 1.0
+
+    # Return to default mode
+    bindsym Escape mode "default"
+}
+bindsym $mod+b mode "setsizeh"
+
+mode "setsizev" {
+    bindsym 1 set_size v 0.125
+    bindsym 2 set_size v 0.1666666667
+    bindsym 3 set_size v 0.25
+    bindsym 4 set_size v 0.333333333
+    bindsym 5 set_size v 0.375
+    bindsym 6 set_size v 0.5
+    bindsym 7 set_size v 0.625
+    bindsym 8 set_size v 0.6666666667
+    bindsym 9 set_size v 0.75
+    bindsym 0 set_size v 0.833333333
+    bindsym minus set_size v 0.875
+    bindsym equal set_size v 1.0
+
+    # Return to default mode
+    bindsym Escape mode "default"
+}
+bindsym $mod+Shift+b mode "setsizev"
+
 mode "resize" {
     # left will shrink the containers width
     # right will grow the containers width
     # up will shrink the containers height
     # down will grow the containers height
-    bindsym $left resize shrink width 10px
-    bindsym $down resize grow height 10px
-    bindsym $up resize shrink height 10px
-    bindsym $right resize grow width 10px
-
-    # Ditto, with arrow keys
-    bindsym Left resize shrink width 10px
-    bindsym Down resize grow height 10px
-    bindsym Up resize shrink height 10px
-    bindsym Right resize grow width 10px
+    bindsym $left resize shrink width 100px
+    bindsym $down resize grow height 100px
+    bindsym $up resize shrink height 100px
+    bindsym $right resize grow width 100px
 
     # Return to default mode
-    bindsym Return mode "default"
     bindsym Escape mode "default"
 }
-bindsym $mod+r mode "resize"
+bindsym $mod+Shift+r mode "resize"
+
+mode "align" {
+    bindsym c align center; mode default
+    bindsym m align middle; mode default
+    bindsym r align reset; mode default
+    bindsym $left align left; mode default
+    bindsym $right align right; mode default
+    bindsym $up align up; mode default
+    bindsym $down align down; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+c mode "align"
+
+mode "fit_size" {
+    bindsym w fit_size h visible proportional; mode default
+    bindsym Shift+w fit_size v visible proportional; mode default
+    bindsym Ctrl+w fit_size h visible equal; mode default
+    bindsym Ctrl+Shift+w fit_size v visible equal; mode default
+
+    bindsym $right fit_size h toend proportional; mode default
+    bindsym Shift+$right fit_size v toend proportional; mode default
+    bindsym Ctrl+$right fit_size h toend equal; mode default
+    bindsym Ctrl+Shift+$right fit_size v toend equal; mode default
+
+    bindsym $left fit_size h tobeg proportional; mode default
+    bindsym Shift+$left fit_size v tobeg proportional; mode default
+    bindsym Ctrl+$left fit_size h tobeg equal; mode default
+    bindsym Ctrl+Shift+$left fit_size v tobeg equal; mode default
+
+    bindsym $up fit_size h active proportional; mode default
+    bindsym Shift+$up fit_size v active proportional; mode default
+    #bindsym Ctrl+$up fit_size h active equal; mode default
+    #bindsym Ctrl+Shift+$up fit_size v active equal; mode default
+
+    bindsym $down fit_size h all proportional; mode default
+    bindsym Shift+$down fit_size v all proportional; mode default
+    bindsym Ctrl+$down fit_size h all equal; mode default
+    bindsym Ctrl+Shift+$down fit_size v all equal; mode default
+}
+bindsym $mod+w mode "fit_size"
+
 #
 # Utilities:
 #
@@ -207,22 +361,31 @@ bindsym $mod+r mode "resize"
     # Special key to take a screenshot with grim
     bindsym Print exec grim
 
+
+focus_wrapping no
+
+bindgesture swipe:4:right workspace next
+bindgesture swipe:4:left workspace prev
+
+bindgesture swipe:4:up scale_workspace overview 
+bindgesture swipe:4:down jump
+
 #
 # Status Bar:
 #
 # Read `man 5 sway-bar` for more information about this section.
-bar {
-    position top
-
-    # When the status_command prints a new line to stdout, swaybar updates.
-    # The default just shows the current date and time.
-    status_command while date +'%Y-%m-%d %X'; do sleep 1; done
-
-    colors {
-        statusline #ffffff
-        background #323232
-        inactive_workspace #32323200 #32323200 #5c5c5c
-    }
-}
-
-include @sysconfdir@/sway/config.d/*
+# bar {
+#     position top
+#
+#     # When the status_command prints a new line to stdout, swaybar updates.
+#     # The default just shows the current date and time.
+#     status_command while date +'%Y-%m-%d %X'; do sleep 1; done
+#
+#     colors {
+#         statusline #ffffff
+#         background #323232
+#         inactive_workspace #32323200 #32323200 #5c5c5c
+#     }
+# }
+#
+# include @sysconfdir@/sway/config.d/*
