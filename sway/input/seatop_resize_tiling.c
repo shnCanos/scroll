@@ -7,41 +7,17 @@
 #include "sway/tree/arrange.h"
 #include "sway/tree/container.h"
 #include "sway/tree/view.h"
+#include "sway/tree/workspace.h"
 
 struct seatop_resize_tiling_event {
-	struct sway_container *con;    // leaf container
-
-	// con, or ancestor of con which will be resized horizontally/vertically
-	struct sway_container *h_con;
-	struct sway_container *v_con;
-
-	// sibling con(s) that will be resized to accommodate
-	struct sway_container *h_sib;
-	struct sway_container *v_sib;
+	struct sway_container *con;    // container to resize
 
 	enum wlr_edges edge;
 	enum wlr_edges edge_x, edge_y;
 	double ref_lx, ref_ly;         // cursor's x/y at start of op
-	double h_con_orig_width;       // width of the horizontal ancestor at start
-	double v_con_orig_height;      // height of the vertical ancestor at start
+	double con_orig_width;       // width of the container at start
+	double con_orig_height;      // height of the container at start
 };
-
-static struct sway_container *container_get_resize_sibling(
-		struct sway_container *con, uint32_t edge) {
-	if (!con) {
-		return NULL;
-	}
-
-	list_t *siblings = container_get_siblings(con);
-	int index = container_sibling_index(con);
-	int offset = edge & (WLR_EDGE_TOP | WLR_EDGE_LEFT) ? -1 : 1;
-
-	if (siblings->length == 1) {
-		return NULL;
-	} else {
-		return siblings->items[index + offset];
-	}
-}
 
 static void handle_button(struct sway_seat *seat, uint32_t time_msec,
 		struct wlr_input_device *device, uint32_t button,
@@ -49,23 +25,29 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
 	struct seatop_resize_tiling_event *e = seat->seatop_data;
 
 	if (seat->cursor->pressed_button_count == 0) {
-		if (e->h_con) {
-			container_set_resizing(e->h_con, false);
-			container_set_resizing(e->h_sib, false);
-			if (e->h_con->pending.parent) {
-				arrange_container(e->h_con->pending.parent);
+		if (e->con) {
+			enum sway_container_layout layout = layout_get_type(e->con->pending.workspace);
+			struct sway_container *parent = e->con->pending.parent;
+			if (layout == L_HORIZ) {
+				parent->pending.width = e->con->pending.width;
+				parent->free_size = true;
+				for (int i = 0; i < parent->pending.children->length; ++i) {
+					struct sway_container *child = parent->pending.children->items[i];
+					child->pending.width = parent->pending.width;
+					child->free_size = true;
+				}
 			} else {
-				arrange_workspace(e->h_con->pending.workspace);
+				parent->pending.height = e->con->pending.height;
+				parent->free_size = true;
+				for (int i = 0; i < parent->pending.children->length; ++i) {
+					struct sway_container *child = parent->pending.children->items[i];
+					child->pending.height = parent->pending.height;
+					child->free_size = true;
+				}
 			}
-		}
-		if (e->v_con) {
-			container_set_resizing(e->v_con, false);
-			container_set_resizing(e->v_sib, false);
-			if (e->v_con->pending.parent) {
-				arrange_container(e->v_con->pending.parent);
-			} else {
-				arrange_workspace(e->v_con->pending.workspace);
-			}
+			e->con->free_size = true;
+			container_set_resizing(e->con, false);
+			arrange_workspace(e->con->pending.workspace);
 		}
 		transaction_commit_dirty();
 		seatop_begin_default(seat);
@@ -79,26 +61,21 @@ static void handle_pointer_motion(struct sway_seat *seat, uint32_t time_msec) {
 	int moved_x = seat->cursor->cursor->x - e->ref_lx;
 	int moved_y = seat->cursor->cursor->y - e->ref_ly;
 
-	if (e->h_con) {
-		if (e->edge & WLR_EDGE_LEFT) {
-			amount_x = (e->h_con_orig_width - moved_x) - e->h_con->pending.width;
-		} else if (e->edge & WLR_EDGE_RIGHT) {
-			amount_x = (e->h_con_orig_width + moved_x) - e->h_con->pending.width;
+	if (e->edge_x) {
+		if (e->edge_x & WLR_EDGE_LEFT) {
+			amount_x = e->con_orig_width - moved_x;
+		} else if (e->edge_x & WLR_EDGE_RIGHT) {
+			amount_x = e->con_orig_width + moved_x;
 		}
+		e->con->pending.width = amount_x;
 	}
-	if (e->v_con) {
-		if (e->edge & WLR_EDGE_TOP) {
-			amount_y = (e->v_con_orig_height - moved_y) - e->v_con->pending.height;
-		} else if (e->edge & WLR_EDGE_BOTTOM) {
-			amount_y = (e->v_con_orig_height + moved_y) - e->v_con->pending.height;
+	if (e->edge_y) {
+		if (e->edge_y & WLR_EDGE_TOP) {
+			amount_y = e->con_orig_height - moved_y;
+		} else if (e->edge_y & WLR_EDGE_BOTTOM) {
+			amount_y = e->con_orig_height + moved_y;
 		}
-	}
-
-	if (amount_x != 0) {
-		container_resize_tiled(e->h_con, e->edge_x, amount_x);
-	}
-	if (amount_y != 0) {
-		container_resize_tiled(e->v_con, e->edge_y, amount_y);
+		e->con->pending.height = amount_y;
 	}
 	transaction_commit_dirty();
 }
@@ -106,9 +83,6 @@ static void handle_pointer_motion(struct sway_seat *seat, uint32_t time_msec) {
 static void handle_unref(struct sway_seat *seat, struct sway_container *con) {
 	struct seatop_resize_tiling_event *e = seat->seatop_data;
 	if (e->con == con) {
-		seatop_begin_default(seat);
-	}
-	if (e->h_sib == con || e->v_sib == con) {
 		seatop_begin_default(seat);
 	}
 }
@@ -134,27 +108,15 @@ void seatop_begin_resize_tiling(struct sway_seat *seat,
 	e->ref_lx = seat->cursor->cursor->x;
 	e->ref_ly = seat->cursor->cursor->y;
 
+	container_set_resizing(e->con, true);
+
 	if (edge & (WLR_EDGE_LEFT | WLR_EDGE_RIGHT)) {
 		e->edge_x = edge & (WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
-		e->h_con = container_find_resize_parent(e->con, e->edge_x);
-		e->h_sib = container_get_resize_sibling(e->h_con, e->edge_x);
-
-		if (e->h_con) {
-			container_set_resizing(e->h_con, true);
-			container_set_resizing(e->h_sib, true);
-			e->h_con_orig_width = e->h_con->pending.width;
-		}
+		e->con_orig_width = e->con->pending.width;
 	}
 	if (edge & (WLR_EDGE_TOP | WLR_EDGE_BOTTOM)) {
 		e->edge_y = edge & (WLR_EDGE_TOP | WLR_EDGE_BOTTOM);
-		e->v_con = container_find_resize_parent(e->con, e->edge_y);
-		e->v_sib = container_get_resize_sibling(e->v_con, e->edge_y);
-
-		if (e->v_con) {
-			container_set_resizing(e->v_con, true);
-			container_set_resizing(e->v_sib, true);
-			e->v_con_orig_height = e->v_con->pending.height;
-		}
+		e->con_orig_height = e->con->pending.height;
 	}
 
 	seat->seatop_impl = &seatop_impl;

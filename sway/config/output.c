@@ -79,6 +79,12 @@ struct output_config *new_output_config(const char *name) {
 	oc->color_transform = NULL;
 	oc->power = -1;
 	oc->allow_tearing = -1;
+	// scroller layout options
+	oc->layout_type = L_NONE;
+	oc->layout_default_width = -1;
+	oc->layout_default_height = -1;
+	oc->layout_widths = NULL;
+	oc->layout_heights = NULL;
 	return oc;
 }
 
@@ -143,6 +149,24 @@ static void supersede_output_config(struct output_config *dst, struct output_con
 	}
 	if (src->power != -1) {
 		dst->power = -1;
+	}
+	// scroller layout options
+	if (src->layout_type != L_NONE) {
+		dst->layout_type = L_NONE;
+	}
+	if (src->layout_default_width != -1) {
+		dst->layout_default_width = -1;
+	}
+	if (src->layout_default_height != -1) {
+		dst->layout_default_height = -1;
+	}
+	if (src->layout_widths != NULL) {
+		list_free_items_and_destroy(dst->layout_widths);
+		dst->layout_widths = NULL;
+	}
+	if (src->layout_heights != NULL) {
+		list_free_items_and_destroy(dst->layout_heights);
+		dst->layout_heights = NULL;
 	}
 }
 
@@ -218,6 +242,24 @@ static void merge_output_config(struct output_config *dst, struct output_config 
 	}
 	if (src->allow_tearing != -1) {
 		dst->allow_tearing = src->allow_tearing;
+	}
+	// scroller layout options
+	if (src->layout_type != L_NONE) {
+		dst->layout_type = src->layout_type;
+	}
+	if (src->layout_default_width != -1) {
+		dst->layout_default_width = src->layout_default_width;
+	}
+	if (src->layout_default_height != -1) {
+		dst->layout_default_height = src->layout_default_height;
+	}
+	if (src->layout_widths != NULL) {
+		list_free_items_and_destroy(dst->layout_widths);
+		dst->layout_widths = copy_double_list(src->layout_widths);
+	}
+	if (src->layout_heights != NULL) {
+		list_free_items_and_destroy(dst->layout_heights);
+		dst->layout_heights = copy_double_list(src->layout_heights);
 	}
 }
 
@@ -533,6 +575,14 @@ static bool finalize_output_config(struct output_config *oc, struct sway_output 
 	} else {
 		wlr_output_layout_add_auto(root->output_layout, wlr_output);
 	}
+
+	// Scroller options. Set them before enabling the output because it will
+	// create workspaces, and these options need to be set by then.
+	output->scroller_options.type = oc ? oc->layout_type : L_NONE;
+	output->scroller_options.default_height = oc ? oc->layout_default_height : -1;
+	output->scroller_options.default_width = oc ? oc->layout_default_width : -1;
+	output->scroller_options.heights = oc && oc->layout_heights ? copy_double_list(oc->layout_heights) : NULL;
+	output->scroller_options.widths = oc && oc->layout_widths ? copy_double_list(oc->layout_widths) : NULL;
 
 	if (!output->enabled) {
 		output_enable(output);
@@ -907,14 +957,14 @@ static bool apply_resolved_output_configs(struct matched_output_config *configs,
 		struct matched_output_config *cfg = &configs[idx];
 		struct wlr_backend_output_state *backend_state = &states[idx];
 
-		struct wlr_scene_output_state_options opts = {
+		struct sway_scene_output_state_options opts = {
 			.swapchain = wlr_output_swapchain_manager_get_swapchain(
 				&swapchain_mgr, backend_state->output),
 			.color_transform = cfg->output->color_transform,
 		};
-		struct wlr_scene_output *scene_output = cfg->output->scene_output;
+		struct sway_scene_output *scene_output = cfg->output->scene_output;
 		struct wlr_output_state *state = &backend_state->base;
-		if (!wlr_scene_output_build_state(scene_output, state, &opts)) {
+		if (!sway_scene_output_build_state(scene_output, state, &opts)) {
 			sway_log(SWAY_ERROR, "Building output state for '%s' failed",
 				backend_state->output->name);
 			goto out;
@@ -1020,6 +1070,8 @@ void free_output_config(struct output_config *oc) {
 	free(oc->background_option);
 	free(oc->background_fallback);
 	wlr_color_transform_unref(oc->color_transform);
+	list_free_items_and_destroy(oc->layout_heights);
+	list_free_items_and_destroy(oc->layout_widths);
 	free(oc);
 }
 

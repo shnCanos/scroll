@@ -3,7 +3,7 @@
 
 #include <wlr/types/wlr_keyboard_shortcuts_inhibit_v1.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
-#include <wlr/types/wlr_scene.h>
+#include "sway/tree/scene.h"
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_touch.h>
 #include <wlr/util/edges.h>
@@ -90,8 +90,8 @@ struct sway_seat {
 	//     - drag icon 1
 	//     - drag icon 2
 	//   - seatop specific stuff
-	struct wlr_scene_tree *scene_tree;
-	struct wlr_scene_tree *drag_icons;
+	struct sway_scene_tree *scene_tree;
+	struct sway_scene_tree *drag_icons;
 
 	bool has_focus;
 	struct wl_list focus_stack; // list of containers in focus order
@@ -275,6 +275,9 @@ void seatop_begin_move_tiling_threshold(struct sway_seat *seat,
 		struct sway_container *con);
 
 void seatop_begin_move_tiling(struct sway_seat *seat,
+		struct sway_container *con);
+
+void seatop_begin_scroll_tiling(struct sway_seat *seat,
 		struct sway_container *con);
 
 void seatop_begin_resize_floating(struct sway_seat *seat,

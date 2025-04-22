@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <assert.h>
 #include <wayland-server-protocol.h>
 #include "log.h"
+#include "list.h"
 #include "util.h"
 
 int wrap(int i, int max) {
@@ -140,4 +142,150 @@ bool sway_set_cloexec(int fd, bool cloexec) {
 		return false;
 	}
 	return true;
+}
+
+void array_remove_at(struct wl_array *arr, size_t offset, size_t size) {
+	assert(arr->size >= offset + size);
+
+	char *data = arr->data;
+	memmove(&data[offset], &data[offset + size], arr->size - offset - size);
+	arr->size -= size;
+}
+
+bool array_realloc(struct wl_array *arr, size_t size) {
+	// If the size is less than 1/4th of the allocation size, we shrink it.
+	// 1/4th is picked to provide hysteresis, without which an array with size
+	// arr->alloc would constantly reallocate if an element is added and then
+	// removed continously.
+	size_t alloc;
+	if (arr->alloc > 0 && size > arr->alloc / 4) {
+		alloc = arr->alloc;
+	} else {
+		alloc = 16;
+	}
+
+	while (alloc < size) {
+		alloc *= 2;
+	}
+
+	if (alloc == arr->alloc) {
+		return true;
+	}
+
+	void *data = realloc(arr->data, alloc);
+	if (data == NULL) {
+		return false;
+	}
+	arr->data = data;
+	arr->alloc = alloc;
+	return true;
+}
+
+bool env_parse_bool(const char *option) {
+	const char *env = getenv(option);
+	if (env) {
+		sway_log(SWAY_INFO, "Loading %s option: %s", option, env);
+	}
+
+	if (!env || strcmp(env, "0") == 0) {
+		return false;
+	} else if (strcmp(env, "1") == 0) {
+		return true;
+	}
+
+	sway_log(SWAY_ERROR, "Unknown %s option: %s", option, env);
+	return false;
+}
+
+size_t env_parse_switch(const char *option, const char **switches) {
+	const char *env = getenv(option);
+	if (env) {
+		sway_log(SWAY_INFO, "Loading %s option: %s", option, env);
+	} else {
+		return 0;
+	}
+
+	for (ssize_t i = 0; switches[i]; i++) {
+		if (strcmp(env, switches[i]) == 0) {
+			return i;
+		}
+	}
+
+	sway_log(SWAY_ERROR, "Unknown %s option: %s", option, env);
+	return 0;
+}
+
+int64_t timespec_to_msec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+int64_t timespec_to_nsec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * NSEC_PER_SEC + a->tv_nsec;
+}
+
+void timespec_from_nsec(struct timespec *r, int64_t nsec) {
+	r->tv_sec = nsec / NSEC_PER_SEC;
+	r->tv_nsec = nsec % NSEC_PER_SEC;
+}
+
+int64_t get_current_time_msec(void) {
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	return timespec_to_msec(&now);
+}
+
+void timespec_sub(struct timespec *r, const struct timespec *a,
+		const struct timespec *b) {
+	r->tv_sec = a->tv_sec - b->tv_sec;
+	r->tv_nsec = a->tv_nsec - b->tv_nsec;
+	if (r->tv_nsec < 0) {
+		r->tv_sec--;
+		r->tv_nsec += NSEC_PER_SEC;
+	}
+}
+
+static void skip_spaces(char **head) {
+	while (**head == ' ') {
+		++*head;
+	}
+}
+
+// Parse an array and return a list
+list_t *parse_double_array(char *str) {
+	if (str[0] != '[' || str[strlen(str) - 1] != ']') {
+		return NULL;
+	}
+	++str;
+	list_t *list = create_list();
+	while(*str != ']') {
+		double *val;
+		val = malloc(sizeof(double));
+		char *end;
+		*val = strtod(str, &end);
+		list_add(list, val);
+		if (*end) {
+			skip_spaces(&end);
+			str = end;
+		}
+	}
+	return list;
+}
+
+// Copies a list of doubles into a new list
+list_t *copy_double_list(list_t *src) {
+	if (src->length == 0) {
+		return NULL;
+	}
+	list_t *list = create_list();
+	for (int i = 0; i < src->length; ++i) {
+		double *item = src->items[i];
+		double *val = malloc(sizeof(double));
+		*val = *item;
+		list_add(list, val);
+	}
+	return list;
+}
+
+int max(int a, int b) {
+    return a > b ? a : b;
 }

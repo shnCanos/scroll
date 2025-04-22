@@ -166,6 +166,9 @@ void free_config(struct sway_config *config) {
 		}
 		list_free(config->criteria);
 	}
+	list_free_items_and_destroy(config->layout_widths);
+	list_free_items_and_destroy(config->layout_heights);
+	free(config->jump_labels_keys);
 	list_free(config->no_focus);
 	list_free(config->active_bar_modifiers);
 	list_free_items_and_destroy(config->config_chain);
@@ -223,6 +226,30 @@ static void config_defaults(struct sway_config *config) {
 	if (!(config->no_focus = create_list())) goto cleanup;
 	if (!(config->seat_configs = create_list())) goto cleanup;
 	if (!(config->output_configs = create_list())) goto cleanup;
+
+	config->layout_default_width = 0.5;
+	config->layout_default_height = 1.0;
+	if (!(config->layout_widths = create_list())) goto cleanup;
+	double sizes[] = { 0.33333333, 0.5, 0.66666667, 1.0 };
+	for (int i = 0; i < 4; ++i) {
+		double *val = malloc(sizeof(double));
+		*val = sizes[i];
+		list_add(config->layout_widths, val);
+	}
+	if (!(config->layout_heights = create_list())) goto cleanup;
+	for (int i = 0; i < 4; ++i) {
+		double *val = malloc(sizeof(double));
+		*val = sizes[i];
+		list_add(config->layout_heights, val);
+	}
+	color_to_rgba(config->jump_labels_color, 0x159E3080);
+	color_to_rgba(config->jump_labels_background, 0x00000000);
+	config->jump_labels_scale = 0.5;
+	config->jump_labels_keys = strdup("1234");
+	config->fullscreen_movefocus = true;
+	config->gesture_scroll_enable = true;
+	config->gesture_scroll_fingers = 3;
+	config->gesture_scroll_sentitivity = 1.0f;
 
 	if (!(config->input_type_configs = create_list())) goto cleanup;
 	if (!(config->input_configs = create_list())) goto cleanup;

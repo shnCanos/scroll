@@ -1,5 +1,5 @@
 project(
-	'sway',
+	'scroll',
 	'c',
 	version: '1.11-rc1',
 	license: 'MIT',
@@ -218,7 +218,7 @@ configure_file(
 )
 
 install_data(
-	'sway.desktop',
+	'scroll.desktop',
 	install_dir: join_paths(datadir, 'wayland-sessions')
 )
 

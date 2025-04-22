@@ -20,7 +20,7 @@
 
 static struct sway_xdg_popup *popup_create(
 	struct wlr_xdg_popup *wlr_popup, struct sway_view *view,
-	struct wlr_scene_tree *parent);
+	struct sway_scene_tree *parent);
 
 static void popup_handle_new_popup(struct wl_listener *listener, void *data) {
 	struct sway_xdg_popup *popup =
@@ -36,7 +36,7 @@ static void popup_handle_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&popup->destroy.link);
 	wl_list_remove(&popup->surface_commit.link);
 	wl_list_remove(&popup->reposition.link);
-	wlr_scene_node_destroy(&popup->scene_tree->node);
+	sway_scene_node_destroy(&popup->scene_tree->node);
 	free(popup);
 }
 
@@ -50,6 +50,7 @@ static void popup_unconstrain(struct sway_xdg_popup *popup) {
 		return;
 	}
 
+	float scale = view_is_content_scaled(view) ? view_get_content_scale(view) : 1.0f;
 	struct sway_output *output = workspace->output;
 
 	// the output box expressed in the coordinate system of the toplevel parent
@@ -57,8 +58,8 @@ static void popup_unconstrain(struct sway_xdg_popup *popup) {
 	struct wlr_box output_toplevel_sx_box = {
 		.x = output->lx - view->container->pending.content_x + view->geometry.x,
 		.y = output->ly - view->container->pending.content_y + view->geometry.y,
-		.width = output->width,
-		.height = output->height,
+		.width = output->width / scale,
+		.height = output->height / scale,
 	};
 
 	wlr_xdg_popup_unconstrain_from_box(wlr_popup, &output_toplevel_sx_box);
@@ -77,7 +78,7 @@ static void popup_handle_reposition(struct wl_listener *listener, void *data) {
 }
 
 static struct sway_xdg_popup *popup_create(struct wlr_xdg_popup *wlr_popup,
-		struct sway_view *view, struct wlr_scene_tree *parent) {
+		struct sway_view *view, struct sway_scene_tree *parent) {
 	struct wlr_xdg_surface *xdg_surface = wlr_popup->base;
 
 	struct sway_xdg_popup *popup = calloc(1, sizeof(struct sway_xdg_popup));
@@ -88,16 +89,16 @@ static struct sway_xdg_popup *popup_create(struct wlr_xdg_popup *wlr_popup,
 	popup->wlr_xdg_popup = wlr_popup;
 	popup->view = view;
 
-	popup->scene_tree = wlr_scene_tree_create(parent);
+	popup->scene_tree = sway_scene_tree_create(parent);
 	if (!popup->scene_tree) {
 		free(popup);
 		return NULL;
 	}
 
-	popup->xdg_surface_tree = wlr_scene_xdg_surface_create(
+	popup->xdg_surface_tree = sway_scene_xdg_surface_create(
 		popup->scene_tree, xdg_surface);
 	if (!popup->xdg_surface_tree) {
-		wlr_scene_node_destroy(&popup->scene_tree->node);
+		sway_scene_node_destroy(&popup->scene_tree->node);
 		free(popup);
 		return NULL;
 	}
@@ -108,7 +109,7 @@ static struct sway_xdg_popup *popup_create(struct wlr_xdg_popup *wlr_popup,
 	if (!scene_descriptor_assign(&popup->scene_tree->node,
 			SWAY_SCENE_DESC_POPUP, &popup->desc)) {
 		sway_log(SWAY_ERROR, "Failed to allocate a popup scene descriptor");
-		wlr_scene_node_destroy(&popup->scene_tree->node);
+		sway_scene_node_destroy(&popup->scene_tree->node);
 		free(popup);
 		return NULL;
 	}
@@ -365,8 +366,8 @@ static void handle_new_popup(struct wl_listener *listener, void *data) {
 	}
 
 	int lx, ly;
-	wlr_scene_node_coords(&popup->view->content_tree->node, &lx, &ly);
-	wlr_scene_node_set_position(&popup->scene_tree->node, lx, ly);
+	sway_scene_node_coords(&popup->view->content_tree->node, &lx, &ly);
+	sway_scene_node_set_position(&popup->scene_tree->node, lx, ly);
 }
 
 static void handle_request_maximize(struct wl_listener *listener, void *data) {
@@ -464,6 +465,8 @@ static void handle_map(struct wl_listener *listener, void *data) {
 
 	view->natural_width = toplevel->base->geometry.width;
 	view->natural_height = toplevel->base->geometry.height;
+
+	view->content_scale = -1.0f; // disable
 
 	bool csd = false;
 
@@ -569,7 +572,7 @@ void handle_xdg_shell_toplevel(struct wl_listener *listener, void *data) {
 	xdg_shell_view->destroy.notify = handle_destroy;
 	wl_signal_add(&xdg_toplevel->events.destroy, &xdg_shell_view->destroy);
 
-	wlr_scene_xdg_surface_create(xdg_shell_view->view.content_tree, xdg_toplevel->base);
+	sway_scene_xdg_surface_create(xdg_shell_view->view.content_tree, xdg_toplevel->base);
 
 	xdg_toplevel->base->data = xdg_shell_view;
 }

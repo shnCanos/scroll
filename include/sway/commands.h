@@ -90,20 +90,12 @@ void free_cmd_results(struct cmd_results *results);
 char *cmd_results_to_json(list_t *res_list);
 
 /**
- * TODO: Move this function and its dependent functions to container.c.
- */
-void container_resize_tiled(struct sway_container *parent, uint32_t axis,
-		int amount);
-
-struct sway_container *container_find_resize_parent(struct sway_container *con,
-		uint32_t edge);
-
-/**
  * Handlers shared by exec and exec_always.
  */
 sway_cmd cmd_exec_validate;
 sway_cmd cmd_exec_process;
 
+sway_cmd cmd_align;
 sway_cmd cmd_allow_tearing;
 sway_cmd cmd_assign;
 sway_cmd cmd_bar;
@@ -122,12 +114,14 @@ sway_cmd cmd_client_placeholder;
 sway_cmd cmd_client_background;
 sway_cmd cmd_commands;
 sway_cmd cmd_create_output;
+sway_cmd cmd_cycle_size;
 sway_cmd cmd_default_border;
 sway_cmd cmd_default_floating_border;
 sway_cmd cmd_default_orientation;
 sway_cmd cmd_exec;
 sway_cmd cmd_exec_always;
 sway_cmd cmd_exit;
+sway_cmd cmd_fit_size;
 sway_cmd cmd_floating;
 sway_cmd cmd_floating_maximum_size;
 sway_cmd cmd_floating_minimum_size;
@@ -142,15 +136,28 @@ sway_cmd cmd_for_window;
 sway_cmd cmd_force_display_urgency_hint;
 sway_cmd cmd_force_focus_wrapping;
 sway_cmd cmd_fullscreen;
+sway_cmd cmd_fullscreen_movefocus;
 sway_cmd cmd_gaps;
+sway_cmd cmd_gesture_scroll_enable;
+sway_cmd cmd_gesture_scroll_fingers;
+sway_cmd cmd_gesture_scroll_sensitivity;
 sway_cmd cmd_hide_edge_borders;
 sway_cmd cmd_include;
 sway_cmd cmd_inhibit_idle;
 sway_cmd cmd_input;
 sway_cmd cmd_seat;
 sway_cmd cmd_ipc;
+sway_cmd cmd_jump;
+sway_cmd cmd_jump_labels_background;
+sway_cmd cmd_jump_labels_color;
+sway_cmd cmd_jump_labels_keys;
+sway_cmd cmd_jump_labels_scale;
 sway_cmd cmd_kill;
 sway_cmd cmd_layout;
+sway_cmd cmd_layout_default_height;
+sway_cmd cmd_layout_default_width;
+sway_cmd cmd_layout_heights;
+sway_cmd cmd_layout_widths;
 sway_cmd cmd_log_colors;
 sway_cmd cmd_mark;
 sway_cmd cmd_max_render_time;
@@ -170,9 +177,13 @@ sway_cmd cmd_reject;
 sway_cmd cmd_reload;
 sway_cmd cmd_rename;
 sway_cmd cmd_resize;
+sway_cmd cmd_scale_content;
+sway_cmd cmd_scale_workspace;
 sway_cmd cmd_scratchpad;
 sway_cmd cmd_seamless_mouse;
 sway_cmd cmd_set;
+sway_cmd cmd_set_size;
+sway_cmd cmd_set_mode;
 sway_cmd cmd_shortcuts_inhibitor;
 sway_cmd cmd_show_marks;
 sway_cmd cmd_smart_borders;
@@ -302,6 +313,11 @@ sway_cmd output_cmd_subpixel;
 sway_cmd output_cmd_toggle;
 sway_cmd output_cmd_transform;
 sway_cmd output_cmd_unplug;
+sway_cmd output_cmd_layout_type;
+sway_cmd output_cmd_layout_default_width;
+sway_cmd output_cmd_layout_default_height;
+sway_cmd output_cmd_layout_widths;
+sway_cmd output_cmd_layout_heights;
 
 sway_cmd seat_cmd_attach;
 sway_cmd seat_cmd_cursor;

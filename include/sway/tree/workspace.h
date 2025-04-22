@@ -2,9 +2,10 @@
 #define _SWAY_WORKSPACE_H
 
 #include <stdbool.h>
-#include <wlr/types/wlr_scene.h>
 #include "sway/config.h"
+#include "sway/tree/layout.h"
 #include "sway/tree/container.h"
+#include "sway/tree/scene.h"
 #include "sway/tree/node.h"
 
 struct sway_view;
@@ -13,8 +14,6 @@ struct sway_workspace_state {
 	struct sway_container *fullscreen;
 	double x, y;
 	int width, height;
-	enum sway_container_layout layout;
-	struct sway_output *output;
 	list_t *floating;
 	list_t *tiling;
 
@@ -26,8 +25,8 @@ struct sway_workspace {
 	struct sway_node node;
 
 	struct {
-		struct wlr_scene_tree *tiling;
-		struct wlr_scene_tree *fullscreen;
+		struct sway_scene_tree *tiling;
+		struct sway_scene_tree *fullscreen;
 	} layers;
 
 	struct sway_container *fullscreen;
@@ -37,8 +36,7 @@ struct sway_workspace {
 
 	double x, y;
 	int width, height;
-	enum sway_container_layout layout;
-	enum sway_container_layout prev_split_layout;
+	struct sway_scroller layout;
 
 	struct side_gaps current_gaps;
 	int gaps_inner;
@@ -49,6 +47,11 @@ struct sway_workspace {
 	list_t *tiling;             // struct sway_container
 	list_t *output_priority;
 	bool urgent;
+
+	struct {
+		bool scrolling;
+		double dx, dy;
+	} gesture;
 
 	struct sway_workspace_state current;
 };

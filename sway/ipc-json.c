@@ -47,13 +47,9 @@ static const char *ipc_json_node_type_description(enum sway_node_type node_type)
 static const char *ipc_json_layout_description(enum sway_container_layout l) {
 	switch (l) {
 	case L_VERT:
-		return "splitv";
+		return "vertical";
 	case L_HORIZ:
-		return "splith";
-	case L_TABBED:
-		return "tabbed";
-	case L_STACKED:
-		return "stacked";
+		return "horizontal";
 	case L_NONE:
 		break;
 	}
@@ -517,10 +513,10 @@ static void ipc_json_describe_workspace(struct sway_workspace *workspace,
 
 	json_object_object_add(object, "layout",
 			json_object_new_string(
-				ipc_json_layout_description(workspace->layout)));
+				ipc_json_layout_description(layout_get_type(workspace))));
 	json_object_object_add(object, "orientation",
 			json_object_new_string(
-				ipc_json_orientation_description(workspace->layout)));
+				ipc_json_orientation_description(layout_modifiers_get_mode(workspace))));
 
 	// Floating
 	json_object *floating_array = json_object_new_array();
@@ -533,12 +529,7 @@ static void ipc_json_describe_workspace(struct sway_workspace *workspace,
 }
 
 static void get_deco_rect(struct sway_container *c, struct wlr_box *deco_rect) {
-	enum sway_container_layout parent_layout = container_parent_layout(c);
-	list_t *siblings = container_get_siblings(c);
-	bool tab_or_stack = (parent_layout == L_TABBED || parent_layout == L_STACKED)
-		&& ((siblings && siblings->length > 1) || !config->hide_lone_tab);
-	if (((!tab_or_stack || container_is_floating(c)) &&
-				c->current.border != B_NORMAL) ||
+	if ((container_is_floating(c) && c->current.border != B_NORMAL) ||
 			c->pending.fullscreen_mode != FULLSCREEN_NONE ||
 			c->pending.workspace == NULL) {
 		deco_rect->x = deco_rect->y = deco_rect->width = deco_rect->height = 0;
@@ -554,21 +545,6 @@ static void get_deco_rect(struct sway_container *c, struct wlr_box *deco_rect) {
 	}
 	deco_rect->width = c->pending.width;
 	deco_rect->height = container_titlebar_height();
-
-	if (!container_is_floating(c)) {
-		if (parent_layout == L_TABBED) {
-			deco_rect->width = c->pending.parent
-				? c->pending.parent->pending.width / c->pending.parent->pending.children->length
-				: c->pending.workspace->width / c->pending.workspace->tiling->length;
-			deco_rect->x += deco_rect->width * container_sibling_index(c);
-		} else if (parent_layout == L_STACKED) {
-			if (!c->view) {
-				size_t siblings = container_get_siblings(c)->length;
-				deco_rect->y -= deco_rect->height * siblings;
-			}
-			deco_rect->y += deco_rect->height * container_sibling_index(c);
-		}
-	}
 }
 
 static void ipc_json_describe_view(struct sway_container *c, json_object *object) {
@@ -806,9 +782,6 @@ json_object *ipc_json_describe_node(struct sway_node *node) {
 		struct wlr_box deco_rect = {0, 0, 0, 0};
 		get_deco_rect(node->sway_container, &deco_rect);
 		size_t count = 1;
-		if (container_parent_layout(node->sway_container) == L_STACKED) {
-			count = container_get_siblings(node->sway_container)->length;
-		}
 		box.y += deco_rect.height * count;
 		box.height -= deco_rect.height * count;
 	}
@@ -1468,3 +1441,47 @@ json_object *ipc_json_get_binding_mode(void) {
 			json_object_new_string(config->current_mode->name));
 	return current_mode;
 }
+
+json_object *ipc_json_describe_scroller(struct sway_workspace *workspace) {
+	if (!(sway_assert(workspace, "Workspace must not be null"))) {
+		return NULL;
+	}
+	json_object *object = json_object_new_object();
+
+	json_object_object_add(object, "workspace", json_object_new_string(workspace->name));
+	json_object_object_add(object, "overview", json_object_new_boolean(layout_overview_enabled(workspace)));
+	json_object_object_add(object, "scaled", json_object_new_boolean(layout_scale_enabled(workspace)));
+	json_object_object_add(object, "scale", json_object_new_double(layout_scale_get(workspace)));
+
+	enum sway_container_layout layout = layout_modifiers_get_mode(workspace);
+	json_object_object_add(object, "mode",
+		json_object_new_string(layout == L_HORIZ ? "horizontal" : "vertical"));
+
+	enum sway_layout_insert insert = layout_modifiers_get_insert(workspace);
+	switch (insert) {
+	case INSERT_BEFORE:
+		json_object_object_add(object, "insert", json_object_new_string("before"));
+		break;
+	case INSERT_AFTER:
+		json_object_object_add(object, "insert", json_object_new_string("after"));
+		break;
+	case INSERT_BEGINNING:
+		json_object_object_add(object, "insert", json_object_new_string("beginning"));
+		break;
+	case INSERT_END:
+		json_object_object_add(object, "insert", json_object_new_string("end"));
+		break;
+	}
+	bool focus = layout_modifiers_get_focus(workspace);
+	json_object_object_add(object, "focus", json_object_new_boolean(focus));
+	bool center_horizontal = layout_modifiers_get_center_horizontal(workspace);
+	json_object_object_add(object, "center_horizontal", json_object_new_boolean(center_horizontal));
+	bool center_vertical = layout_modifiers_get_center_vertical(workspace);
+	json_object_object_add(object, "center_vertical", json_object_new_boolean(center_vertical));
+	enum sway_layout_reorder reorder = layout_modifiers_get_reorder(workspace);
+	json_object_object_add(object, "reorder",
+		json_object_new_string(reorder == REORDER_AUTO ? "auto" : "lazy"));
+
+	return object;
+}
+

@@ -23,6 +23,9 @@ enum ipc_command_type {
 	IPC_GET_INPUTS = 100,
 	IPC_GET_SEATS = 101,
 
+	// scroll-specific command types
+	IPC_GET_SCROLLER = 120,
+
 	// Events sent from sway to clients. Events have the highest bits set.
 	IPC_EVENT_WORKSPACE = ((1<<31) | 0),
 	IPC_EVENT_OUTPUT = ((1<<31) | 1),
@@ -36,6 +39,9 @@ enum ipc_command_type {
 	// sway-specific event types
 	IPC_EVENT_BAR_STATE_UPDATE = ((1<<31) | 20),
 	IPC_EVENT_INPUT = ((1<<31) | 21),
+
+	// scroll-specific event types
+	IPC_EVENT_SCROLLER = ((1<<31) | 30),
 };
 
 #endif

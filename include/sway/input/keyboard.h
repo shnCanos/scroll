@@ -48,6 +48,9 @@ struct sway_shortcut_state {
 	uint32_t current_key;
 };
 
+typedef void (*sway_keyboard_cb_fn)(struct sway_keyboard *keyboard,
+		struct wlr_keyboard_key_event *event, void *data);
+
 struct sway_keyboard {
 	struct sway_seat_device *seat_device;
 	struct wlr_keyboard *wlr;
@@ -69,6 +72,9 @@ struct sway_keyboard {
 
 	struct wl_event_source *key_repeat_source;
 	struct sway_binding *repeat_binding;
+
+	sway_keyboard_cb_fn key_press_cb;
+	void *key_press_cb_data;
 };
 
 struct sway_keyboard_group {
@@ -92,4 +98,8 @@ void sway_keyboard_configure(struct sway_keyboard *keyboard);
 void sway_keyboard_destroy(struct sway_keyboard *keyboard);
 
 void sway_keyboard_disarm_key_repeat(struct sway_keyboard *keyboard);
+
+void sway_keyboard_set_keypress_cb(struct sway_keyboard *keyboard,
+		sway_keyboard_cb_fn callback, void *callbak_data);
+
 #endif

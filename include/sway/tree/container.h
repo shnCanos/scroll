@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_scene.h>
 #include "list.h"
+#include "sway/tree/scene.h"
 #include "sway/tree/node.h"
 
 struct sway_view;
@@ -14,8 +14,6 @@ enum sway_container_layout {
 	L_NONE,
 	L_HORIZ,
 	L_VERT,
-	L_STACKED,
-	L_TABBED,
 };
 
 enum sway_container_border {
@@ -69,29 +67,35 @@ struct sway_container {
 	struct sway_node node;
 	struct sway_view *view;
 
-	struct wlr_scene_tree *scene_tree;
+	struct sway_scene_tree *scene_tree;
 
 	struct {
-		struct wlr_scene_tree *tree;
+		struct sway_scene_tree *tree;
 
-		struct wlr_scene_tree *border;
-		struct wlr_scene_tree *background;
+		struct sway_scene_tree *border;
+		struct sway_scene_tree *background;
 
 		struct sway_text_node *title_text;
 		struct sway_text_node *marks_text;
 	} title_bar;
 
 	struct {
-		struct wlr_scene_tree *tree;
+		struct sway_scene_tree *tree;
 
-		struct wlr_scene_rect *top;
-		struct wlr_scene_rect *bottom;
-		struct wlr_scene_rect *left;
-		struct wlr_scene_rect *right;
+		struct sway_scene_rect *top;
+		struct sway_scene_rect *bottom;
+		struct sway_scene_rect *left;
+		struct sway_scene_rect *right;
 	} border;
 
-	struct wlr_scene_tree *content_tree;
-	struct wlr_scene_buffer *output_handler;
+	struct {
+		struct sway_scene_tree *tree;
+
+		struct sway_text_node *text;
+	} jump;
+
+	struct sway_scene_tree *content_tree;
+	struct sway_scene_buffer *output_handler;
 
 	struct wl_listener output_enter;
 	struct wl_listener output_leave;
@@ -123,14 +127,11 @@ struct sway_container {
 	// border which we use to restore when the view returns to SSD.
 	enum sway_container_border saved_border;
 
-	// The share of the space of parent container this container occupies
+	// Fraction of the viewport size this container occupies
 	double width_fraction;
 	double height_fraction;
-
-	// The share of space of the parent container that all children occupy
-	// Used for doing the resize calculations
-	double child_total_width;
-	double child_total_height;
+	// The container doesn't use a fraction for size
+	bool free_size;
 
 	// Indicates that the container is a scratchpad container.
 	// Both hidden and visible scratchpad containers have scratchpad=true.

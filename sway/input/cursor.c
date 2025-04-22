@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <time.h>
 #include <strings.h>
+#include "sway/tree/scene.h"
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_pointer.h>
@@ -26,17 +27,15 @@
 #include "sway/output.h"
 #include "sway/scene_descriptor.h"
 #include "sway/server.h"
+#include "sway/tree/scene.h"
 #include "sway/tree/container.h"
 #include "sway/tree/root.h"
 #include "sway/tree/view.h"
 #include "sway/tree/workspace.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
+#include "sway/render.h"
+#include "sway/desktop/transaction.h"
 
-static uint32_t get_current_time_msec(void) {
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	return now.tv_sec * 1000 + now.tv_nsec / 1000000;
-}
 
 /**
  * Returns the node at the cursor's position. If there is a surface at that
@@ -45,11 +44,11 @@ static uint32_t get_current_time_msec(void) {
 struct sway_node *node_at_coords(
 		struct sway_seat *seat, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	struct wlr_scene_node *scene_node = NULL;
+	struct sway_scene_node *scene_node = NULL;
 
-	struct wlr_scene_node *node;
+	struct sway_scene_node *node;
 	wl_list_for_each_reverse(node, &root->layer_tree->children, link) {
-		struct wlr_scene_tree *layer = wlr_scene_tree_from_node(node);
+		struct sway_scene_tree *layer = sway_scene_tree_from_node(node);
 
 		bool non_interactive = scene_descriptor_try_get(&layer->node,
 			SWAY_SCENE_DESC_NON_INTERACTIVE);
@@ -57,7 +56,7 @@ struct sway_node *node_at_coords(
 			continue;
 		}
 
-		scene_node = wlr_scene_node_at(&layer->node, lx, ly, sx, sy);
+		scene_node = sway_scene_node_at(&layer->node, lx, ly, sx, sy);
 		if (scene_node) {
 			break;
 		}
@@ -65,11 +64,11 @@ struct sway_node *node_at_coords(
 
 	if (scene_node) {
 		// determine what wlr_surface we clicked on
-		if (scene_node->type == WLR_SCENE_NODE_BUFFER) {
-			struct wlr_scene_buffer *scene_buffer =
-				wlr_scene_buffer_from_node(scene_node);
-			struct wlr_scene_surface *scene_surface =
-				wlr_scene_surface_try_from_buffer(scene_buffer);
+		if (scene_node->type == SWAY_SCENE_NODE_BUFFER) {
+			struct sway_scene_buffer *scene_buffer =
+				sway_scene_buffer_from_node(scene_node);
+			struct sway_scene_surface *scene_surface =
+				sway_scene_surface_try_from_buffer(scene_buffer);
 
 			if (scene_surface) {
 				*surface = scene_surface->surface;
@@ -77,7 +76,7 @@ struct sway_node *node_at_coords(
 		}
 
 		// determine what container we clicked on
-		struct wlr_scene_node *current = scene_node;
+		struct sway_scene_node *current = scene_node;
 		while (true) {
 			struct sway_container *con = scene_descriptor_try_get(current,
 				SWAY_SCENE_DESC_CONTAINER);
@@ -1169,15 +1168,22 @@ void cursor_warp_to_container(struct sway_cursor *cursor,
 		return;
 	}
 
+	// We need to have the focused container in the correct position before
+	// getting its box and warping the cursor
+	transaction_commit_dirty();
 	struct wlr_box box;
 	container_get_box(container, &box);
+	struct sway_workspace *workspace = container->pending.workspace;
+	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+	box.width *= scale;
+	box.height *= scale;
 	if (!force && wlr_box_contains_point(&box, cursor->cursor->x,
 			cursor->cursor->y)) {
 		return;
 	}
 
-	double x = container->pending.x + container->pending.width / 2.0;
-	double y = container->pending.y + container->pending.height / 2.0;
+	double x = container->pending.x + scale * container->pending.width / 2.0;
+	double y = container->pending.y + scale * container->pending.height / 2.0;
 
 	wlr_cursor_warp(cursor->cursor, NULL, x, y);
 	cursor_unhide(cursor);

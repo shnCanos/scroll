@@ -521,6 +521,21 @@ void ipc_event_output(void) {
 	json_object_put(json);
 }
 
+void ipc_event_scroller(const char *change, struct sway_workspace *workspace) {
+	if (!ipc_has_event_listeners(IPC_EVENT_SCROLLER)) {
+		return;
+	}
+	sway_log(SWAY_DEBUG, "Sending scroller event");
+
+	json_object *json = json_object_new_object();
+	json_object_object_add(json, "change", json_object_new_string(change));
+	json_object_object_add(json, "scroller", ipc_json_describe_scroller(workspace));
+
+	const char *json_string = json_object_to_json_string(json);
+	ipc_send_event(json_string, IPC_EVENT_SCROLLER);
+	json_object_put(json);
+}
+
 int ipc_client_handle_writable(int client_fd, uint32_t mask, void *data) {
 	struct ipc_client *client = data;
 
@@ -763,6 +778,8 @@ void ipc_client_handle_command(struct ipc_client *client, uint32_t payload_lengt
 				is_tick = true;
 			} else if (strcmp(event_type, "input") == 0) {
 				client->subscribed_events |= event_mask(IPC_EVENT_INPUT);
+			} else if (strcmp(event_type, "scroller") == 0) {
+				client->subscribed_events |= event_mask(IPC_EVENT_SCROLLER);
 			} else {
 				const char msg[] = "{\"success\": false}";
 				ipc_send_reply(client, payload_type, msg, strlen(msg));
@@ -920,6 +937,19 @@ void ipc_client_handle_command(struct ipc_client *client, uint32_t payload_lengt
 		// It was decided sway will not support this, just return success:false
 		const char msg[] = "{\"success\": false}";
 		ipc_send_reply(client, payload_type, msg, strlen(msg));
+		goto exit_cleanup;
+	}
+
+	case IPC_GET_SCROLLER:
+	{
+		struct sway_seat *seat = input_manager_get_default_seat();
+		struct sway_workspace *workspace = seat_get_focused_workspace(seat);
+		json_object *json = json_object_new_object();
+		json_object_object_add(json, "scroller", ipc_json_describe_scroller(workspace));
+		const char *json_string = json_object_to_json_string(json);
+		ipc_send_reply(client, payload_type, json_string,
+			(uint32_t)strlen(json_string));
+		json_object_put(json); // free
 		goto exit_cleanup;
 	}
 

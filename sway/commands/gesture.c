@@ -4,6 +4,7 @@
 #include "log.h"
 #include "stringop.h"
 #include "sway/commands.h"
+#include "util.h"
 
 void free_gesture_binding(struct sway_gesture_binding *binding) {
 	if (!binding) {
@@ -161,4 +162,46 @@ struct cmd_results *cmd_bindgesture(int argc, char **argv) {
 
 struct cmd_results *cmd_unbindgesture(int argc, char **argv) {
 	return cmd_bind_or_unbind_gesture(argc, argv, true);
+}
+
+/**
+ * Enable or disable gesture scrolling in config
+ */
+struct cmd_results *cmd_gesture_scroll_enable(int argc, char **argv) {
+	struct cmd_results *error = NULL;
+	if ((error = checkarg(argc, "gesture_scroll_enable", EXPECTED_AT_LEAST, 1))) {
+		return error;
+	}
+
+	config->gesture_scroll_enable = parse_boolean(argv[0], true);
+
+	return cmd_results_new(CMD_SUCCESS, NULL);
+}
+
+/**
+ * Set the number of fingers for gesture scrolling in config
+ */
+struct cmd_results *cmd_gesture_scroll_fingers(int argc, char **argv) {
+	struct cmd_results *error = NULL;
+	if ((error = checkarg(argc, "gesture_scroll_fingers", EXPECTED_AT_LEAST, 1))) {
+		return error;
+	}
+
+	config->gesture_scroll_fingers = (int)strtol(argv[0], NULL, 10);
+
+	return cmd_results_new(CMD_SUCCESS, NULL);
+}
+
+/**
+ * Set the sensitivity value for gesture scrolling in config
+ */
+struct cmd_results *cmd_gesture_scroll_sensitivity(int argc, char **argv) {
+	struct cmd_results *error = NULL;
+	if ((error = checkarg(argc, "gesture_scroll_sensitivity", EXPECTED_AT_LEAST, 1))) {
+		return error;
+	}
+
+	config->gesture_scroll_sentitivity = strtof(argv[0], NULL);
+
+	return cmd_results_new(CMD_SUCCESS, NULL);
 }

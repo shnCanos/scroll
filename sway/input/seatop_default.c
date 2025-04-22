@@ -361,6 +361,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
 	bool mod_move_btn_pressed = mod_pressed && button == mod_move_btn;
 	bool mod_resize_btn_pressed = mod_pressed && button == mod_resize_btn;
 	bool titlebar_left_btn_pressed = on_titlebar && button == BTN_LEFT;
+	bool mod_scroll_btn_pressed = mod_pressed && button == BTN_MIDDLE;
 
 	// Handle mouse bindings
 	if (trigger_pointer_button_binding(seat, device, button, state, modifiers,
@@ -395,15 +396,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
 	// Handle tiling resize via border
 	if (cont && resize_edge && button == BTN_LEFT &&
 			state == WL_POINTER_BUTTON_STATE_PRESSED && !is_floating) {
-		// If a resize is triggered on a tabbed or stacked container, change
-		// focus to the tab which already had inactive focus -- otherwise, we'd
-		// change the active tab when the user probably just wanted to resize.
 		struct sway_container *cont_to_focus = cont;
-		enum sway_container_layout layout = container_parent_layout(cont);
-		if (layout == L_TABBED || layout == L_STACKED) {
-			cont_to_focus = seat_get_focus_inactive_view(seat, &cont->pending.parent->node);
-		}
-
 		seat_set_focus_container(seat, cont_to_focus);
 		seatop_begin_resize_tiling(seat, cont, edge);
 		return;
@@ -499,6 +492,13 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
 		return;
 	}
 
+	// Handle scrolling with the middle button pressed
+	if (!is_floating_or_child && state == WL_POINTER_BUTTON_STATE_PRESSED &&
+		mod_scroll_btn_pressed && cont && cont->pending.fullscreen_mode == FULLSCREEN_NONE) {
+		seatop_begin_scroll_tiling(seat, cont);
+		return;
+	}
+
 	// Handle mousedown on a container surface
 	if (surface && cont && state == WL_POINTER_BUTTON_STATE_PRESSED) {
 		seatop_begin_down(seat, cont, sx, sy);
@@ -590,7 +590,14 @@ static void check_focus_follows_mouse(struct sway_seat *seat,
 		// If focus_follows_mouse is yes and the cursor got over the view due
 		// to, say, a workspace switch, we don't want to set the focus.
 		// But if focus_follows_mouse is "always", we do.
-		if (hovered_node != e->previous_node ||
+		// For scroller, we also check if the cursor is in the gaps_out area,
+		// and if it is, we only change focus if clicked or FOLLOWS_ALWAYS.
+		struct sway_workspace *ws = hovered_node->sway_container->pending.workspace;
+		const double cx = seat->cursor->cursor->x;
+		const double cy = seat->cursor->cursor->y;
+		bool in_gaps = cx < ws->x || cx > ws->x + ws->width || cy < ws->y || cy > ws->y + ws->height ?
+			true : false;
+		if ((hovered_node != e->previous_node && !in_gaps) ||
 				config->focus_follows_mouse == FOLLOWS_ALWAYS) {
 			seat_set_focus(seat, hovered_node);
 			transaction_commit_dirty();
@@ -752,29 +759,7 @@ static void handle_pointer_axis(struct sway_seat *seat,
 	// Scrolling on a tabbed or stacked title bar (handled as press event)
 	if (!handled && (on_titlebar || on_titlebar_border)) {
 		struct sway_node *new_focus;
-		enum sway_container_layout layout = container_parent_layout(cont);
-		if (layout == L_TABBED || layout == L_STACKED) {
-			struct sway_node *tabcontainer = node_get_parent(node);
-			struct sway_node *active =
-				seat_get_active_tiling_child(seat, tabcontainer);
-			list_t *siblings = container_get_siblings(cont);
-			int desired = list_find(siblings, active->sway_container) +
-				roundf(scroll_factor * event->delta_discrete / WLR_POINTER_AXIS_DISCRETE_STEP);
-			if (desired < 0) {
-				desired = 0;
-			} else if (desired >= siblings->length) {
-				desired = siblings->length - 1;
-			}
-
-			struct sway_container *new_sibling_con = siblings->items[desired];
-			struct sway_node *new_sibling = &new_sibling_con->node;
-			// Use the focused child of the tabbed/stacked container, not the
-			// container the user scrolled on.
-			new_focus = seat_get_focus_inactive(seat, new_sibling);
-		} else {
-			new_focus = seat_get_focus_inactive(seat, &cont->node);
-		}
-
+		new_focus = seat_get_focus_inactive(seat, &cont->node);
 		seat_set_focus(seat, new_focus);
 		transaction_commit_dirty();
 		handled = true;
@@ -1046,6 +1031,10 @@ static void handle_swipe_begin(struct sway_seat *seat,
 		struct seatop_default_event *seatop = seat->seatop_data;
 		gesture_tracker_begin(&seatop->gestures, GESTURE_TYPE_SWIPE, event->fingers);
 	} else {
+		if (config->gesture_scroll_enable && event->fingers == config->gesture_scroll_fingers) {
+			layout_scroll_begin(seat);
+			return;
+		}
 		// ... otherwise forward to client
 		struct sway_cursor *cursor = seat->cursor;
 		wlr_pointer_gestures_v1_send_swipe_begin(
@@ -1063,6 +1052,10 @@ static void handle_swipe_update(struct sway_seat *seat,
 		gesture_tracker_update(&seatop->gestures,
 			event->dx, event->dy, NAN, NAN);
 	} else {
+		if (config->gesture_scroll_enable && event->fingers == config->gesture_scroll_fingers) {
+			layout_scroll_update(seat, event->dx, event->dy);
+			return;
+		}
 		// ... otherwise forward to client
 		struct sway_cursor *cursor = seat->cursor;
 		wlr_pointer_gestures_v1_send_swipe_update(
@@ -1073,6 +1066,11 @@ static void handle_swipe_update(struct sway_seat *seat,
 
 static void handle_swipe_end(struct sway_seat *seat,
 		struct wlr_pointer_swipe_end_event *event) {
+	if (config->gesture_scroll_enable) {
+		if (layout_scroll_end(seat)) {
+			return;
+		}
+	}
 	// Ensure gesture is being tracked and was not cancelled
 	struct seatop_default_event *seatop = seat->seatop_data;
 	if (!gesture_tracker_check(&seatop->gestures, GESTURE_TYPE_SWIPE)) {

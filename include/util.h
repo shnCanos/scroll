@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 #include <wayland-server-protocol.h>
+#include "list.h"
 
 enum movement_unit {
 	MOVEMENT_UNIT_PX,
@@ -60,5 +62,74 @@ float parse_float(const char *value);
 const char *sway_wl_output_subpixel_to_string(enum wl_output_subpixel subpixel);
 
 bool sway_set_cloexec(int fd, bool cloexec);
+
+/**
+ * Remove a chunk of memory of the specified size at the specified offset.
+ */
+void array_remove_at(struct wl_array *arr, size_t offset, size_t size);
+
+/**
+ * Grow or shrink the array to fit the specifized size.
+ */
+bool array_realloc(struct wl_array *arr, size_t size);
+
+/**
+ * Parse a bool from an environment variable.
+ *
+ * On success, the parsed value is returned. On error, false is returned.
+ */
+bool env_parse_bool(const char *option);
+
+/**
+ * Pick a choice from an environment variable.
+ *
+ * On success, the choice index is returned. On error, zero is returned.
+ *
+ * switches is a NULL-terminated array.
+ */
+size_t env_parse_switch(const char *option, const char **switches);
+
+static const long NSEC_PER_SEC = 1000000000;
+
+/**
+ * Get the current time, in milliseconds.
+ */
+int64_t get_current_time_msec(void);
+
+/**
+ * Convert a timespec to milliseconds.
+ */
+int64_t timespec_to_msec(const struct timespec *a);
+
+/**
+ * Convert a timespec to nanoseconds.
+ */
+int64_t timespec_to_nsec(const struct timespec *a);
+
+/**
+ * Convert nanoseconds to a timespec.
+ */
+void timespec_from_nsec(struct timespec *r, int64_t nsec);
+
+/**
+ * Subtracts timespec `b` from timespec `a`, and stores the difference in `r`.
+ */
+void timespec_sub(struct timespec *r, const struct timespec *a,
+		const struct timespec *b);
+
+/**
+ * Parse an array and return a list
+ */
+list_t *parse_double_array(char *str);
+
+/**
+ * Copies a list of doubles into the returned list
+ */
+list_t *copy_double_list(list_t *src);
+
+/**
+ * max of two integers
+ */
+int max(int a, int b);
 
 #endif

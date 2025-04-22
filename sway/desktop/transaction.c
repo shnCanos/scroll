@@ -15,6 +15,7 @@
 #include "sway/tree/node.h"
 #include "sway/tree/view.h"
 #include "sway/tree/workspace.h"
+#include "sway/tree/layout.h"
 #include "list.h"
 #include "log.h"
 
@@ -107,9 +108,7 @@ static void copy_workspace_state(struct sway_workspace *ws,
 	state->y = ws->y;
 	state->width = ws->width;
 	state->height = ws->height;
-	state->layout = ws->layout;
 
-	state->output = ws->output;
 	if (state->floating) {
 		state->floating->length = 0;
 	} else {
@@ -258,12 +257,12 @@ static void arrange_title_bar(struct sway_container *con,
 	container_update(con);
 
 	bool has_title_bar = height > 0;
-	wlr_scene_node_set_enabled(&con->title_bar.tree->node, has_title_bar);
+	sway_scene_node_set_enabled(&con->title_bar.tree->node, has_title_bar);
 	if (!has_title_bar) {
 		return;
 	}
 
-	wlr_scene_node_set_position(&con->title_bar.tree->node, x, y);
+	sway_scene_node_set_position(&con->title_bar.tree->node, x, y);
 
 	con->title_width = width;
 	container_arrange_title_bar(con);
@@ -271,12 +270,12 @@ static void arrange_title_bar(struct sway_container *con,
 
 static void disable_container(struct sway_container *con) {
 	if (con->view) {
-		wlr_scene_node_reparent(&con->view->scene_tree->node, con->content_tree);
+		sway_scene_node_reparent(&con->view->scene_tree->node, con->content_tree);
 	} else {
 		for (int i = 0; i < con->current.children->length; i++) {
 			struct sway_container *child = con->current.children->items[i];
 
-			wlr_scene_node_reparent(&child->scene_tree->node, con->content_tree);
+			sway_scene_node_reparent(&child->scene_tree->node, con->content_tree);
 
 			disable_container(child);
 		}
@@ -284,103 +283,339 @@ static void disable_container(struct sway_container *con) {
 }
 
 static void arrange_container(struct sway_container *con,
-		int width, int height, bool title_bar, int gaps);
+		double width, double height, bool title_bar, int gaps);
+
+// Workspace stores in x, y the logical coordinate that will be applied to a node
+// with x, y = 0, and it includes gaps_out. So if we want to place
+// a container on the leftmost possible position, we should use gaps_in, and it will
+// include both gaps, out and the container's in. Workspace also stores its width
+// and height, and they are the effective, available space: viewport resolution
+// minus 2 * gaps_out.
+static double compute_active_offset(struct sway_workspace *workspace,
+		enum sway_container_layout layout, list_t *children,
+		int active_idx, int width, int height, int gaps) {
+	struct sway_container *active = children->items[active_idx];
+	// Offsets may be wrong, so consider only the active position and all the
+	// widths and order are valid. Also, when the workspace is scaled, offsets
+	// and sizes are not.
+	double scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0;
+	if (layout == L_HORIZ) {
+		bool center = layout_modifiers_get_center_horizontal(workspace);
+		if (center) {
+			return workspace->x + 0.5 * (width - scale * active->current.width);
+		}
+		// Center row if space available
+        double lwidth = 0, rwidth = 0;
+        for (int i = 0; i < active_idx; ++i) {
+			struct sway_container *con = children->items[i];
+            lwidth += scale * (con->current.width + 2 * gaps);
+        }
+        for (int i = active_idx; i < children->length; ++i) {
+			struct sway_container *con = children->items[i];
+            rwidth += scale * (con->current.width + 2 * gaps);
+        }
+        double twidth = lwidth + rwidth;
+        if (twidth <= width) {
+            double start = 0.5 * (width - twidth);
+            return workspace->x + start + lwidth + scale * gaps;
+        }
+
+		double a_x = active->pending.x;
+		double a_w = active->pending.width;
+		if (a_x < workspace->x) {
+			// active starts outside on the left
+			// set it on the left edge
+			return workspace->x + scale * gaps;
+		} else if (a_x + scale * a_w > workspace->x + width) {
+			// active overflows to the right, move to end of viewport
+			return workspace->x + width - scale * (a_w + gaps);
+		} else {
+			// Active is inside the viewport
+			// If Active is the first container, it should be on the left edge,
+			// and if it is the last one, on the right (because we know total
+			// container width is wider than the viewport, otherwise it would have
+			// been centered earlier).
+			if (active_idx == 0) {
+				return workspace->x + scale * gaps;
+			} else if (active_idx == children->length - 1) {
+				return workspace->x + width - scale * (a_w + gaps);
+			}
+			// If any of the windows next to it on its right or left are
+			// in the viewport, keep the current position.
+			struct sway_container *prev = active_idx > 0 ? children->items[active_idx - 1] : NULL;
+			struct sway_container *next = active_idx < children->length - 1 ? children->items[active_idx + 1] : NULL;
+			bool keep_current = false;
+			// Note that previous and next positions may be wrong because we could be moving the active container
+			if (prev) {
+				double prev_x = a_x - scale * (prev->pending.width + 2 * gaps);
+				if (prev_x >= workspace->x && prev_x + scale * prev->pending.width <= workspace->x + width) {
+					keep_current = true;
+				}
+			}
+			if (!keep_current && next) {
+				double next_x = a_x + scale * (a_w + 2 * gaps);
+				if (next_x >= workspace->x && next_x + scale * next->pending.width <= workspace->x + width) {
+					keep_current = true;
+				}
+			}
+			if (!keep_current) {
+				// If not:
+				// We try to fit the column next to it on the right if it fits
+				// completely, otherwise the one on the left. If none of them fit,
+				// we leave it as it is.
+				if (next) {
+					if (scale * (a_w + 3 * gaps + next->pending.width) <= width) {
+						// set next at the right edge of the viewport
+						return workspace->x + width - scale * (a_w + 3 * gaps + next->pending.width);
+					} else if (prev) {
+						if (scale * (prev->pending.width + 3 * gaps + a_w) <= width) {
+							// set previous at the left edge of the viewport
+							return workspace->x + scale * (prev->pending.width + 3 * gaps);
+						} else {
+							// none of them fit, leave active as it is
+							return a_x;
+						}
+					} else {
+						// nothing on the left, move active to left edge of viewport
+						return workspace->x + scale * gaps;
+					}
+				} else if (prev) {
+					if (scale * (prev->pending.width + 3 * gaps + a_w) <= width) {
+						// set previous at the left edge of the viewport
+						return workspace->x + scale * (prev->pending.width + 3 * gaps);
+					} else {
+						// it doesn't fit and nothing on the right, move active to right edge of viewport
+						return workspace->x + width - scale * (a_w + 2 * gaps);
+					}
+				} else {
+					// nothing on the right or left, the window is in a correct position
+					return a_x;
+				}
+			} else {
+				// the window is in a correct position
+				return a_x;
+			}
+		}
+	} else {
+		bool center = layout_modifiers_get_center_vertical(workspace);
+		if (center) {
+			return workspace->y + 0.5 * (height - scale * active->pending.height);
+		}
+		// Center row if space available
+        double lheight = 0, rheight = 0;
+        for (int i = 0; i < active_idx; ++i) {
+			struct sway_container *con = children->items[i];
+            lheight += scale * (con->current.height + 2 * gaps);
+        }
+        for (int i = active_idx; i < children->length; ++i) {
+			struct sway_container *con = children->items[i];
+            rheight += scale * (con->current.height + 2 * gaps);
+        }
+        double theight = lheight + rheight;
+        if (theight <= height) {
+            double start = 0.5 * (height - theight);
+            return workspace->y + start + lheight + scale * gaps;
+        }
+
+		double a_y = active->pending.y;
+		double a_h = active->pending.height;
+		if (a_y < workspace->y) {
+			// active starts outside on the left
+			// set it on the left edge
+			return workspace->y + scale * gaps;
+		} else if (a_y + scale * a_h > workspace->y + height) {
+			// active overflows to the right, move to end of viewport
+			return workspace->y + height - scale * (a_h + gaps);
+		} else {
+			// Active is inside the viewport
+			// If Active is the first container, it should be on the top edge,
+			// and if it is the last one, on the bottom (because we know total
+			// container height is higher than the viewport, otherwise it would have
+			// been centered earlier).
+			if (active_idx == 0) {
+				return workspace->y + scale * gaps;
+			} else if (active_idx == children->length - 1) {
+				return workspace->y + height - scale * (a_h + gaps);
+			}
+			// If any of the windows next to it on its right or left are
+			// in the viewport, keep the current position.
+			struct sway_container *prev = active_idx > 0 ? children->items[active_idx - 1] : NULL;
+			struct sway_container *next = active_idx < children->length - 1 ? children->items[active_idx + 1] : NULL;
+			bool keep_current = false;
+			// Note that previous and next positions may be wrong because we could be moving the active container
+			if (prev) {
+				double prev_y = a_y - scale * (prev->pending.height + 2 * gaps);
+				if (prev_y >= workspace->y && prev_y + scale * prev->pending.height <= workspace->y + height) {
+					keep_current = true;
+				}
+			}
+			if (!keep_current && next) {
+				double next_y = a_y + scale * (a_h + 2 * gaps);
+				if (next_y >= workspace->y && next_y + scale * next->pending.height <= workspace->y + height) {
+					keep_current = true;
+				}
+			}
+			if (!keep_current) {
+				// If not:
+				// We try to fit the column next to it on the right if it fits
+				// completely, otherwise the one on the left. If none of them fit,
+				// we leave it as it is.
+				if (next) {
+					if (scale * (a_h + 3 * gaps + next->pending.height) <= height) {
+						// set next at the right edge of the viewport
+						return workspace->y + height - scale * (a_h + 3 * gaps + next->pending.height);
+					} else if (prev) {
+						if (scale * (prev->pending.height + 3 * gaps + a_h) <= 0.0) {
+							// set previous at the left edge of the viewport
+							return workspace->y + scale * (prev->pending.height + 3 * gaps);
+						} else {
+							// none of them fit, leave active as it is
+							return a_y;
+						}
+					} else {
+						// nothing on the left, move active to left edge of viewport
+						return workspace->y + scale * gaps;
+					}
+				} else if (prev) {
+					if (scale * (prev->pending.height + 3 * gaps + a_h) <= height) {
+						// set previous at the left edge of the viewport
+						return workspace->y + scale * (prev->pending.height + 3 * gaps);
+					} else {
+						// it doesn't fit and nothing on the right, move active to right edge of viewport
+						return workspace->y + height - scale * (a_h + 2 * gaps);
+					}
+				} else {
+					// nothing on the right or left, the window is in a correct position
+					return a_y;
+				}
+			} else {
+				// the window is in a correct position
+				return a_y;
+			}
+		}
+	}
+}
 
 static void arrange_children(enum sway_container_layout layout, list_t *children,
-		struct sway_container *active, struct wlr_scene_tree *content,
+		struct sway_container *active, struct sway_scene_tree *content,
 		int width, int height, int gaps) {
-	int title_bar_height = container_titlebar_height();
 
-	if (layout == L_TABBED) {
-		struct sway_container *first = children->length == 1 ?
-			((struct sway_container *)children->items[0]) : NULL;
-		if (config->hide_lone_tab && first && first->view &&
-				first->current.border != B_NORMAL) {
-			title_bar_height = 0;
-		}
+	if (children->length == 0) {
+		return;
+	}
 
-		double w = (double) width / children->length;
-		int title_offset = 0;
-		for (int i = 0; i < children->length; i++) {
+	int active_idx = list_find(children, active);
+	if (active_idx == -1) {
+		active_idx = 0;
+		active = children->items[active_idx];
+	}
+	struct sway_workspace *workspace = active->pending.workspace;
+	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+	double offset;
+	if (workspace->gesture.scrolling || layout_modifiers_get_reorder(workspace) == REORDER_LAZY) {
+		offset = layout == L_HORIZ ? active->pending.x : active->pending.y;
+	} else {
+		offset = compute_active_offset(workspace, layout, children, active_idx,
+			workspace->width, workspace->height, gaps);
+	}
+
+	if (layout == L_VERT) {
+		double off = offset - workspace->y;
+		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
-			bool activated = child == active;
-			int next_title_offset = round(w * i + w);
-
-			arrange_title_bar(child, title_offset, -title_bar_height,
-				next_title_offset - title_offset, title_bar_height);
-			wlr_scene_node_set_enabled(&child->border.tree->node, activated);
-			wlr_scene_node_set_position(&child->scene_tree->node, 0, title_bar_height);
-			wlr_scene_node_reparent(&child->scene_tree->node, content);
-
-			int net_height = height - title_bar_height;
-			if (activated && width > 0 && net_height > 0) {
-				arrange_container(child, width, net_height, title_bar_height == 0, 0);
-			} else {
-				disable_container(child);
+			struct sway_container *parent = child->pending.parent;
+			double cheight = child->pending.height;
+			sway_scene_node_set_enabled(&child->border.tree->node, true);
+			sway_scene_node_set_position(&child->scene_tree->node, 0, round(off));
+			double delta = child->pending.content_y - child->pending.y;
+			child->pending.y = off + workspace->y;
+			if (child->view) {
+				child->pending.content_y = child->pending.y + delta;
 			}
-
-			title_offset = next_title_offset;
+			if (parent) {
+				delta = parent->pending.x - child->pending.x;
+				child->pending.x = parent->pending.x;
+				if (child->view) {
+					child->pending.content_x += delta;
+				}
+			}
+			sway_scene_node_reparent(&child->scene_tree->node, content);
+			arrange_container(child, child->pending.width, cheight, true, gaps);
+			off += scale * (cheight + 2 * gaps);
 		}
-	} else if (layout == L_STACKED) {
-		struct sway_container *first = children->length == 1 ?
-			((struct sway_container *)children->items[0]) : NULL;
-		if (config->hide_lone_tab && first && first->view &&
-				first->current.border != B_NORMAL) {
-			title_bar_height = 0;
-		}
-
-		int title_height = title_bar_height * children->length;
-
-		int y = 0;
-		for (int i = 0; i < children->length; i++) {
+		off = offset - workspace->y;
+		for (int i = active_idx - 1; i >= 0; i--) {
 			struct sway_container *child = children->items[i];
-			bool activated = child == active;
-
-			arrange_title_bar(child, 0, y - title_height, width, title_bar_height);
-			wlr_scene_node_set_enabled(&child->border.tree->node, activated);
-			wlr_scene_node_set_position(&child->scene_tree->node, 0, title_height);
-			wlr_scene_node_reparent(&child->scene_tree->node, content);
-
-			int net_height = height - title_bar_height;
-			if (activated && width > 0 && net_height > 0) {
-				arrange_container(child, width, net_height, title_bar_height == 0, 0);
-			} else {
-				disable_container(child);
+			struct sway_container *parent = child->pending.parent;
+			double cheight = child->pending.height;
+			off -= scale * (cheight + 2 * gaps);
+			double delta = child->pending.content_y - child->pending.y;
+			child->pending.y = off + workspace->y;
+			if (child->view) {
+				child->pending.content_y = child->pending.y + delta;
 			}
-
-			y += title_bar_height;
-		}
-	} else if (layout == L_VERT) {
-		int off = 0;
-		for (int i = 0; i < children->length; i++) {
-			struct sway_container *child = children->items[i];
-			int cheight = child->current.height;
-
-			wlr_scene_node_set_enabled(&child->border.tree->node, true);
-			wlr_scene_node_set_position(&child->scene_tree->node, 0, off);
-			wlr_scene_node_reparent(&child->scene_tree->node, content);
-			if (width > 0 && cheight > 0) {
-				arrange_container(child, width, cheight, true, gaps);
-				off += cheight + gaps;
-			} else {
-				disable_container(child);
+			if (parent) {
+				delta = parent->pending.x - child->pending.x;
+				child->pending.x = parent->pending.x;
+				if (child->view) {
+					child->pending.content_x += delta;
+				}
 			}
+			sway_scene_node_set_enabled(&child->border.tree->node, true);
+			sway_scene_node_set_position(&child->scene_tree->node, 0, round(off));
+			sway_scene_node_reparent(&child->scene_tree->node, content);
+			arrange_container(child, child->pending.width, cheight, true, gaps);
 		}
 	} else if (layout == L_HORIZ) {
-		int off = 0;
-		for (int i = 0; i < children->length; i++) {
+		double off = offset - workspace->x;
+		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
-			int cwidth = child->current.width;
-
-			wlr_scene_node_set_enabled(&child->border.tree->node, true);
-			wlr_scene_node_set_position(&child->scene_tree->node, off, 0);
-			wlr_scene_node_reparent(&child->scene_tree->node, content);
-			if (cwidth > 0 && height > 0) {
-				arrange_container(child, cwidth, height, true, gaps);
-				off += cwidth + gaps;
-			} else {
-				disable_container(child);
+			struct sway_container *parent = child->pending.parent;
+			int cwidth = child->pending.width;
+			sway_scene_node_set_enabled(&child->border.tree->node, true);
+			sway_scene_node_set_position(&child->scene_tree->node, round(off), 0);
+			// Update child for next iteration. Transactions don't re-arrange
+			// the layout (arrange.c:apply_xxx()), so we need to set it here,
+			// otherwise the next call will have the positions wrong and the
+			// offset won't be optimal.
+			double delta = child->pending.content_x - child->pending.x;
+			child->pending.x = off + workspace->x;
+			if (child->view) {
+				child->pending.content_x = child->pending.x + delta;
 			}
+			if (parent) {
+				delta = parent->pending.y - child->pending.y;
+				child->pending.y = parent->pending.y;
+				if (child->view) {
+					child->pending.content_y += delta;
+				}
+			}
+			sway_scene_node_reparent(&child->scene_tree->node, content);
+			arrange_container(child, cwidth, child->pending.height, true, gaps);
+			off += scale * (cwidth + 2 * gaps);
+		}
+		off = offset - workspace->x;
+		for (int i = active_idx - 1; i >= 0; i--) {
+			struct sway_container *child = children->items[i];
+			struct sway_container *parent = child->pending.parent;
+			int cwidth = child->pending.width;
+			off -= scale * (cwidth + 2 * gaps);
+			double delta = child->pending.content_x - child->pending.x;
+			child->pending.x = off + workspace->x;
+			if (child->view) {
+				child->pending.content_x = child->pending.x + delta;
+			}
+			if (parent) {
+				delta = parent->pending.y - child->pending.y;
+				child->pending.y = parent->pending.y;
+				if (child->view) {
+					child->pending.content_y += delta;
+				}
+			}
+			sway_scene_node_set_enabled(&child->border.tree->node, true);
+			sway_scene_node_set_position(&child->scene_tree->node, round(off), 0);
+			sway_scene_node_reparent(&child->scene_tree->node, content);
+			arrange_container(child, cwidth, child->pending.height, true, gaps);
 		}
 	} else {
 		sway_assert(false, "unreachable");
@@ -388,24 +623,28 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 }
 
 static void arrange_container(struct sway_container *con,
-		int width, int height, bool title_bar, int gaps) {
+		double dwidth, double dheight, bool title_bar, int gaps) {
 	// this container might have previously been in the scratchpad,
 	// make sure it's enabled for viewing
-	wlr_scene_node_set_enabled(&con->scene_tree->node, true);
+	sway_scene_node_set_enabled(&con->scene_tree->node, true);
 
 	if (con->output_handler) {
-		wlr_scene_buffer_set_dest_size(con->output_handler, width, height);
+		sway_scene_buffer_set_dest_size(con->output_handler, round(dwidth), round(dheight));
 	}
 
 	if (con->view) {
-		int border_top = container_titlebar_height();
-		int border_width = con->current.border_thickness;
+		struct sway_workspace *workspace = con->pending.workspace;
+		float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+		int border_top = round(container_titlebar_height() * scale);
+		int border_width = round(con->current.border_thickness * scale);
+		int width = round(scale * dwidth);
+		int height = round(scale * dheight);
 
 		if (title_bar && con->current.border != B_NORMAL) {
-			wlr_scene_node_set_enabled(&con->title_bar.tree->node, false);
-			wlr_scene_node_set_enabled(&con->border.top->node, true);
+			sway_scene_node_set_enabled(&con->title_bar.tree->node, false);
+			sway_scene_node_set_enabled(&con->border.top->node, true);
 		} else {
-			wlr_scene_node_set_enabled(&con->border.top->node, false);
+			sway_scene_node_set_enabled(&con->border.top->node, false);
 		}
 
 		if (con->current.border == B_NORMAL) {
@@ -434,79 +673,66 @@ static void arrange_container(struct sway_container *con,
 		int border_right = con->current.border_right ? border_width : 0;
 		int vert_border_height = MAX(0, height - border_top - border_bottom);
 
-		wlr_scene_rect_set_size(con->border.top, width, border_top);
-		wlr_scene_rect_set_size(con->border.bottom, width, border_bottom);
-		wlr_scene_rect_set_size(con->border.left,
+		sway_scene_rect_set_size(con->border.top, width, border_top);
+		sway_scene_rect_set_size(con->border.bottom, width, border_bottom);
+		sway_scene_rect_set_size(con->border.left,
 			border_left, vert_border_height);
-		wlr_scene_rect_set_size(con->border.right,
+		sway_scene_rect_set_size(con->border.right,
 			border_right, vert_border_height);
 
-		wlr_scene_node_set_position(&con->border.top->node, 0, 0);
-		wlr_scene_node_set_position(&con->border.bottom->node,
+		sway_scene_node_set_position(&con->border.top->node, 0, 0);
+		sway_scene_node_set_position(&con->border.bottom->node,
 			0, height - border_bottom);
-		wlr_scene_node_set_position(&con->border.left->node,
+		sway_scene_node_set_position(&con->border.left->node,
 			0, border_top);
-		wlr_scene_node_set_position(&con->border.right->node,
+		sway_scene_node_set_position(&con->border.right->node,
 			width - border_right, border_top);
 
 		// make sure to reparent, it's possible that the client just came out of
 		// fullscreen mode where the parent of the surface is not the container
-		wlr_scene_node_reparent(&con->view->scene_tree->node, con->content_tree);
-		wlr_scene_node_set_position(&con->view->scene_tree->node,
+		sway_scene_node_reparent(&con->view->scene_tree->node, con->content_tree);
+		sway_scene_node_set_position(&con->view->scene_tree->node,
 			border_left, border_top);
 	} else {
 		// make sure to disable the title bar if the parent is not managing it
 		if (title_bar) {
-			wlr_scene_node_set_enabled(&con->title_bar.tree->node, false);
+			sway_scene_node_set_enabled(&con->title_bar.tree->node, false);
 		}
 
 		arrange_children(con->current.layout, con->current.children,
 			con->current.focused_inactive_child, con->content_tree,
-			width, height, gaps);
+			round(dwidth), round(dheight), gaps);
 	}
 }
 
 static int container_get_gaps(struct sway_container *con) {
 	struct sway_workspace *ws = con->current.workspace;
-	struct sway_container *temp = con;
-	while (temp) {
-		enum sway_container_layout layout;
-		if (temp->current.parent) {
-			layout = temp->current.parent->current.layout;
-		} else {
-			layout = ws->current.layout;
-		}
-		if (layout == L_TABBED || layout == L_STACKED) {
-			return 0;
-		}
-		temp = temp->pending.parent;
-	}
 	return ws->gaps_inner;
 }
 
-static void arrange_fullscreen(struct wlr_scene_tree *tree,
+static void arrange_fullscreen(struct sway_scene_tree *tree,
 		struct sway_container *fs, struct sway_workspace *ws,
 		int width, int height) {
-	struct wlr_scene_node *fs_node;
+	struct sway_scene_node *fs_node;
 	if (fs->view) {
 		fs_node = &fs->view->scene_tree->node;
 
 		// if we only care about the view, disable any decorations
-		wlr_scene_node_set_enabled(&fs->scene_tree->node, false);
+		sway_scene_node_set_enabled(&fs->scene_tree->node, false);
 	} else {
 		fs_node = &fs->scene_tree->node;
 		arrange_container(fs, width, height, true, container_get_gaps(fs));
 	}
 
-	wlr_scene_node_reparent(fs_node, tree);
-	wlr_scene_node_lower_to_bottom(fs_node);
-	wlr_scene_node_set_position(fs_node, 0, 0);
+	sway_scene_node_reparent(fs_node, tree);
+	sway_scene_node_lower_to_bottom(fs_node);
+	sway_scene_node_set_position(fs_node, 0, 0);
 }
 
 static void arrange_workspace_floating(struct sway_workspace *ws) {
 	for (int i = 0; i < ws->current.floating->length; i++) {
 		struct sway_container *floater = ws->current.floating->items[i];
-		struct wlr_scene_tree *layer = root->layers.floating;
+		struct sway_scene_tree *layer = root->layers.floating;
 
 		if (floater->current.fullscreen_mode != FULLSCREEN_NONE) {
 			continue;
@@ -528,10 +754,10 @@ static void arrange_workspace_floating(struct sway_workspace *ws) {
 			}
 		}
 
-		wlr_scene_node_reparent(&floater->scene_tree->node, layer);
-		wlr_scene_node_set_position(&floater->scene_tree->node,
+		sway_scene_node_reparent(&floater->scene_tree->node, layer);
+		sway_scene_node_set_position(&floater->scene_tree->node,
 			floater->current.x, floater->current.y);
-		wlr_scene_node_set_enabled(&floater->scene_tree->node, true);
+		sway_scene_node_set_enabled(&floater->scene_tree->node, true);
 
 		arrange_container(floater, floater->current.width, floater->current.height,
 			true, ws->gaps_inner);
@@ -540,7 +766,10 @@ static void arrange_workspace_floating(struct sway_workspace *ws) {
 
 static void arrange_workspace_tiling(struct sway_workspace *ws,
 		int width, int height) {
-	arrange_children(ws->current.layout, ws->current.tiling,
+	if (layout_overview_enabled(ws)) {
+		layout_overview_recompute_scale(ws, ws->gaps_inner);
+	}
+	arrange_children(layout_get_type(ws), ws->current.tiling,
 		ws->current.focused_inactive_child, ws->layers.tiling,
 		width, height, ws->gaps_inner);
 }
@@ -552,15 +781,15 @@ static void disable_workspace(struct sway_workspace *ws) {
 	for (int i = 0; i < ws->current.tiling->length; i++) {
 		struct sway_container *child = ws->current.tiling->items[i];
 
-		wlr_scene_node_reparent(&child->scene_tree->node, ws->layers.tiling);
+		sway_scene_node_reparent(&child->scene_tree->node, ws->layers.tiling);
 		disable_container(child);
 	}
 
 	for (int i = 0; i < ws->current.floating->length; i++) {
 		struct sway_container *floater = ws->current.floating->items[i];
-		wlr_scene_node_reparent(&floater->scene_tree->node, root->layers.floating);
+		sway_scene_node_reparent(&floater->scene_tree->node, root->layers.floating);
 		disable_container(floater);
-		wlr_scene_node_set_enabled(&floater->scene_tree->node, false);
+		sway_scene_node_set_enabled(&floater->scene_tree->node, false);
 	}
 }
 
@@ -570,28 +799,28 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 
 		bool activated = output->current.active_workspace == child && output->wlr_output->enabled;
 
-		wlr_scene_node_reparent(&child->layers.tiling->node, output->layers.tiling);
-		wlr_scene_node_reparent(&child->layers.fullscreen->node, output->layers.fullscreen);
+		sway_scene_node_reparent(&child->layers.tiling->node, output->layers.tiling);
+		sway_scene_node_reparent(&child->layers.fullscreen->node, output->layers.fullscreen);
 
 		for (int i = 0; i < child->current.floating->length; i++) {
 			struct sway_container *floater = child->current.floating->items[i];
-			wlr_scene_node_reparent(&floater->scene_tree->node, root->layers.floating);
-			wlr_scene_node_set_enabled(&floater->scene_tree->node, activated);
+			sway_scene_node_reparent(&floater->scene_tree->node, root->layers.floating);
+			sway_scene_node_set_enabled(&floater->scene_tree->node, activated);
 		}
 
 		if (activated) {
 			struct sway_container *fs = child->current.fullscreen;
-			wlr_scene_node_set_enabled(&child->layers.tiling->node, !fs);
-			wlr_scene_node_set_enabled(&child->layers.fullscreen->node, fs);
+			sway_scene_node_set_enabled(&child->layers.tiling->node, !fs);
+			sway_scene_node_set_enabled(&child->layers.fullscreen->node, fs);
 
 			arrange_workspace_floating(child);
 
-			wlr_scene_node_set_enabled(&output->layers.shell_background->node, !fs);
-			wlr_scene_node_set_enabled(&output->layers.shell_bottom->node, !fs);
-			wlr_scene_node_set_enabled(&output->layers.fullscreen->node, fs);
+			sway_scene_node_set_enabled(&output->layers.shell_background->node, !fs);
+			sway_scene_node_set_enabled(&output->layers.shell_bottom->node, !fs);
+			sway_scene_node_set_enabled(&output->layers.fullscreen->node, fs);
 
 			if (fs) {
-				wlr_scene_rect_set_size(output->fullscreen_background, width, height);
+				sway_scene_rect_set_size(output->fullscreen_background, width, height);
 
 				arrange_fullscreen(child->layers.fullscreen, fs, child,
 					width, height);
@@ -599,7 +828,7 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 				struct wlr_box *area = &output->usable_area;
 				struct side_gaps *gaps = &child->current_gaps;
 
-				wlr_scene_node_set_position(&child->layers.tiling->node,
+				sway_scene_node_set_position(&child->layers.tiling->node,
 					gaps->left + area->x, gaps->top + area->y);
 
 				arrange_workspace_tiling(child,
@@ -607,24 +836,24 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 					area->height - gaps->top - gaps->bottom);
 			}
 		} else {
-			wlr_scene_node_set_enabled(&child->layers.tiling->node, false);
-			wlr_scene_node_set_enabled(&child->layers.fullscreen->node, false);
+			sway_scene_node_set_enabled(&child->layers.tiling->node, false);
+			sway_scene_node_set_enabled(&child->layers.fullscreen->node, false);
 
 			disable_workspace(child);
 		}
 	}
 }
 
-void arrange_popups(struct wlr_scene_tree *popups) {
-	struct wlr_scene_node *node;
+void arrange_popups(struct sway_scene_tree *popups) {
+	struct sway_scene_node *node;
 	wl_list_for_each(node, &popups->children, link) {
 		struct sway_popup_desc *popup = scene_descriptor_try_get(node,
 			SWAY_SCENE_DESC_POPUP);
 
 		if (popup) {
 			int lx, ly;
-			wlr_scene_node_coords(popup->relative, &lx, &ly);
-			wlr_scene_node_set_position(node, lx, ly);
+			sway_scene_node_coords(popup->relative, &lx, &ly);
+			sway_scene_node_set_position(node, lx, ly);
 		}
 	}
 }
@@ -632,12 +861,12 @@ void arrange_popups(struct wlr_scene_tree *popups) {
 static void arrange_root(struct sway_root *root) {
 	struct sway_container *fs = root->fullscreen_global;
 
-	wlr_scene_node_set_enabled(&root->layers.shell_background->node, !fs);
-	wlr_scene_node_set_enabled(&root->layers.shell_bottom->node, !fs);
-	wlr_scene_node_set_enabled(&root->layers.tiling->node, !fs);
-	wlr_scene_node_set_enabled(&root->layers.floating->node, !fs);
-	wlr_scene_node_set_enabled(&root->layers.shell_top->node, !fs);
-	wlr_scene_node_set_enabled(&root->layers.fullscreen->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.shell_background->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.shell_bottom->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.tiling->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.floating->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.shell_top->node, !fs);
+	sway_scene_node_set_enabled(&root->layers.fullscreen->node, !fs);
 
 	// hide all contents in the scratchpad
 	for (int i = 0; i < root->scratchpad->length; i++) {
@@ -649,10 +878,10 @@ static void arrange_root(struct sway_root *root) {
 		// children so that disabling the container will disable all descendants.
 		if (!con->view) for (int ii = 0; ii < con->current.children->length; ii++) {
 			struct sway_container *child = con->current.children->items[ii];
-			wlr_scene_node_reparent(&child->scene_tree->node, con->content_tree);
+			sway_scene_node_reparent(&child->scene_tree->node, con->content_tree);
 		}
 
-		wlr_scene_node_set_enabled(&con->scene_tree->node, false);
+		sway_scene_node_set_enabled(&con->scene_tree->node, false);
 	}
 
 	if (fs) {
@@ -660,7 +889,7 @@ static void arrange_root(struct sway_root *root) {
 			struct sway_output *output = root->outputs->items[i];
 			struct sway_workspace *ws = output->current.active_workspace;
 
-			wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
+			sway_scene_output_set_position(output->scene_output, output->lx, output->ly);
 
 			if (ws) {
 				arrange_workspace_floating(ws);
@@ -673,23 +902,23 @@ static void arrange_root(struct sway_root *root) {
 		for (int i = 0; i < root->outputs->length; i++) {
 			struct sway_output *output = root->outputs->items[i];
 
-			wlr_scene_output_set_position(output->scene_output, output->lx, output->ly);
+			sway_scene_output_set_position(output->scene_output, output->lx, output->ly);
 
-			wlr_scene_node_reparent(&output->layers.shell_background->node, root->layers.shell_background);
-			wlr_scene_node_reparent(&output->layers.shell_bottom->node, root->layers.shell_bottom);
-			wlr_scene_node_reparent(&output->layers.tiling->node, root->layers.tiling);
-			wlr_scene_node_reparent(&output->layers.shell_top->node, root->layers.shell_top);
-			wlr_scene_node_reparent(&output->layers.shell_overlay->node, root->layers.shell_overlay);
-			wlr_scene_node_reparent(&output->layers.fullscreen->node, root->layers.fullscreen);
-			wlr_scene_node_reparent(&output->layers.session_lock->node, root->layers.session_lock);
+			sway_scene_node_reparent(&output->layers.shell_background->node, root->layers.shell_background);
+			sway_scene_node_reparent(&output->layers.shell_bottom->node, root->layers.shell_bottom);
+			sway_scene_node_reparent(&output->layers.tiling->node, root->layers.tiling);
+			sway_scene_node_reparent(&output->layers.shell_top->node, root->layers.shell_top);
+			sway_scene_node_reparent(&output->layers.shell_overlay->node, root->layers.shell_overlay);
+			sway_scene_node_reparent(&output->layers.fullscreen->node, root->layers.fullscreen);
+			sway_scene_node_reparent(&output->layers.session_lock->node, root->layers.session_lock);
 
-			wlr_scene_node_set_position(&output->layers.shell_background->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.shell_bottom->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.tiling->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.fullscreen->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.shell_top->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.shell_overlay->node, output->lx, output->ly);
-			wlr_scene_node_set_position(&output->layers.session_lock->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.shell_background->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.shell_bottom->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.tiling->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.fullscreen->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.shell_top->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.shell_overlay->node, output->lx, output->ly);
+			sway_scene_node_set_position(&output->layers.session_lock->node, output->lx, output->ly);
 
 			arrange_output(output, output->width, output->height);
 		}

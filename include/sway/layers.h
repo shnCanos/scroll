@@ -15,18 +15,18 @@ struct sway_layer_surface {
 
 	bool mapped;
 
-	struct wlr_scene_tree *popups;
+	struct sway_scene_tree *popups;
 	struct sway_popup_desc desc;
 
 	struct sway_output *output;
-	struct wlr_scene_layer_surface_v1 *scene;
-	struct wlr_scene_tree *tree;
+	struct sway_scene_layer_surface_v1 *scene;
+	struct sway_scene_tree *tree;
 	struct wlr_layer_surface_v1 *layer_surface;
 };
 
 struct sway_layer_popup {
 	struct wlr_xdg_popup *wlr_popup;
-	struct wlr_scene_tree *scene;
+	struct sway_scene_tree *scene;
 	struct sway_layer_surface *toplevel;
 
 	struct wl_listener destroy;

@@ -22,6 +22,7 @@ struct seatop_down_event {
 	struct wlr_surface *surface;
 	double ref_lx, ref_ly;         // cursor's x/y at start of op
 	double ref_con_lx, ref_con_ly; // container's x/y at start of op
+	double scale;                  // content scale of the current surface
 	struct wl_list point_events;   // seatop_touch_point_event::link
 };
 
@@ -159,8 +160,8 @@ static void handle_pointer_motion(struct sway_seat *seat, uint32_t time_msec) {
 	if (seat_is_input_allowed(seat, e->surface)) {
 		double moved_x = seat->cursor->cursor->x - e->ref_lx;
 		double moved_y = seat->cursor->cursor->y - e->ref_ly;
-		double sx = e->ref_con_lx + moved_x;
-		double sy = e->ref_con_ly + moved_y;
+		double sx = e->ref_con_lx + moved_x / e->scale;
+		double sy = e->ref_con_ly + moved_y / e->scale;
 		wlr_seat_pointer_notify_motion(seat->wlr_seat, time_msec, sx, sy);
 	}
 }
@@ -226,6 +227,7 @@ void seatop_begin_down(struct sway_seat *seat, struct sway_container *con,
 	seatop_begin_down_on_surface(seat, con->view->surface, sx, sy);
 	struct seatop_down_event *e = seat->seatop_data;
 	e->con = con;
+	e->scale = view_is_content_scaled(con->view) ? view_get_content_scale(con->view) : 1.0f;
 
 	container_raise_floating(con);
 	transaction_commit_dirty();
@@ -256,6 +258,7 @@ void seatop_begin_down_on_surface(struct sway_seat *seat,
 	e->ref_ly = seat->cursor->cursor->y;
 	e->ref_con_lx = sx;
 	e->ref_con_ly = sy;
+	e->scale = 1.0f;
 	wl_list_init(&e->point_events);
 
 	seat->seatop_impl = &seatop_impl;

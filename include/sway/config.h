@@ -292,6 +292,13 @@ struct output_config {
 	struct wlr_color_transform *color_transform;
 	int allow_tearing;
 
+	// scroller layout options
+	enum sway_container_layout layout_type;
+	double layout_default_width;
+	double layout_default_height;
+	list_t *layout_widths;
+	list_t *layout_heights;
+
 	char *background;
 	char *background_option;
 	char *background_fallback;
@@ -575,6 +582,20 @@ struct sway_config {
 	} border_colors;
 
 	bool has_focused_tab_title;
+
+	// scroller layout options
+	double layout_default_width;
+	double layout_default_height;
+	list_t *layout_widths;
+	list_t *layout_heights;
+	float jump_labels_color[4];
+	float jump_labels_background[4];
+	double jump_labels_scale;
+	char *jump_labels_keys;
+	bool fullscreen_movefocus;
+	bool gesture_scroll_enable;
+	uint32_t gesture_scroll_fingers;
+	float gesture_scroll_sentitivity;
 
 	// floating view
 	int32_t floating_maximum_width;

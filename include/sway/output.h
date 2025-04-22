@@ -5,10 +5,11 @@
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_damage_ring.h>
 #include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_scene.h>
+#include "sway/tree/scene.h"
 #include "config.h"
 #include "sway/tree/node.h"
 #include "sway/tree/view.h"
+#include "sway/tree/layout.h"
 
 struct sway_server;
 struct sway_container;
@@ -22,13 +23,13 @@ struct sway_output {
 	struct sway_node node;
 
 	struct {
-		struct wlr_scene_tree *shell_background;
-		struct wlr_scene_tree *shell_bottom;
-		struct wlr_scene_tree *tiling;
-		struct wlr_scene_tree *fullscreen;
-		struct wlr_scene_tree *shell_top;
-		struct wlr_scene_tree *shell_overlay;
-		struct wlr_scene_tree *session_lock;
+		struct sway_scene_tree *shell_background;
+		struct sway_scene_tree *shell_bottom;
+		struct sway_scene_tree *tiling;
+		struct sway_scene_tree *fullscreen;
+		struct sway_scene_tree *shell_top;
+		struct sway_scene_tree *shell_overlay;
+		struct sway_scene_tree *session_lock;
 	} layers;
 
 	// when a container is fullscreen, in case the fullscreen surface is
@@ -36,10 +37,10 @@ struct sway_output {
 	// solid color in order to conform to the wayland protocol. This rect
 	// ensures that when looking through a surface, all that will be seen
 	// is black.
-	struct wlr_scene_rect *fullscreen_background;
+	struct sway_scene_rect *fullscreen_background;
 
 	struct wlr_output *wlr_output;
-	struct wlr_scene_output *scene_output;
+	struct sway_scene_output *scene_output;
 	struct sway_server *server;
 	struct wl_list link;
 
@@ -72,6 +73,8 @@ struct sway_output {
 	int max_render_time; // In milliseconds
 	struct wl_event_source *repaint_timer;
 	bool allow_tearing;
+
+	struct sway_scroller_output_options scroller_options;
 };
 
 struct sway_output_non_desktop {
@@ -92,7 +95,7 @@ struct sway_output *output_get_in_direction(struct sway_output *reference,
 		enum wlr_direction direction);
 
 void output_configure_scene(struct sway_output *output,
-	struct wlr_scene_node *node, float opacity);
+	struct sway_scene_node *node, float opacity);
 
 void output_add_workspace(struct sway_output *output,
 		struct sway_workspace *workspace);
@@ -147,5 +150,7 @@ void handle_output_power_manager_set_mode(struct wl_listener *listener,
 struct sway_output_non_desktop *output_non_desktop_create(struct wlr_output *wlr_output);
 
 void update_output_manager_config(struct sway_server *server);
+
+struct sway_output *output_for_coords(double lx, double ly);
 
 #endif

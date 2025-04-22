@@ -74,7 +74,7 @@
 #define SWAY_FOREIGN_TOPLEVEL_LIST_VERSION 1
 #define SWAY_PRESENTATION_VERSION 2
 
-bool allow_unsupported_gpu = false;
+bool allow_unsupported_gpu = true;
 
 #if WLR_HAS_DRM_BACKEND
 static void handle_drm_lease_request(struct wl_listener *listener, void *data) {
@@ -289,7 +289,7 @@ bool server_init(struct sway_server *server) {
 
 	server->gamma_control_manager_v1 =
 		wlr_gamma_control_manager_v1_create(server->wl_display);
-	wlr_scene_set_gamma_control_manager_v1(root->root_scene,
+	sway_scene_set_gamma_control_manager_v1(root->root_scene,
 		server->gamma_control_manager_v1);
 
 	server->new_output.notify = handle_new_output;

@@ -50,7 +50,7 @@ bool view_init(struct sway_view *view, enum sway_view_type type,
 	}
 
 	if (failed) {
-		wlr_scene_node_destroy(&view->scene_tree->node);
+		sway_scene_node_destroy(&view->scene_tree->node);
 		return false;
 	}
 
@@ -81,7 +81,7 @@ void view_destroy(struct sway_view *view) {
 	list_free(view->executed_criteria);
 
 	view_assign_ctx(view, NULL);
-	wlr_scene_node_destroy(&view->scene_tree->node);
+	sway_scene_node_destroy(&view->scene_tree->node);
 	if (view->impl->destroy) {
 		view->impl->destroy(view);
 	} else {
@@ -248,14 +248,9 @@ bool view_ancestor_is_only_visible(struct sway_view *view) {
 	bool only_visible = true;
 	struct sway_container *con = view->container;
 	while (con) {
-		enum sway_container_layout layout = container_parent_layout(con);
-		if (layout != L_TABBED && layout != L_STACKED) {
-			list_t *siblings = container_get_siblings(con);
-			if (siblings && siblings->length > 1) {
-				only_visible = false;
-			}
-		} else {
-			only_visible = true;
+		list_t *siblings = container_get_siblings(con);
+		if (siblings && siblings->length > 1) {
+			only_visible = false;
 		}
 		con = con->pending.parent;
 	}
@@ -265,12 +260,9 @@ bool view_ancestor_is_only_visible(struct sway_view *view) {
 static bool view_is_only_visible(struct sway_view *view) {
 	struct sway_container *con = view->container;
 	while (con) {
-		enum sway_container_layout layout = container_parent_layout(con);
-		if (layout != L_TABBED && layout != L_STACKED) {
-			list_t *siblings = container_get_siblings(con);
-			if (siblings && siblings->length > 1) {
-				return false;
-			}
+		list_t *siblings = container_get_siblings(con);
+		if (siblings && siblings->length > 1) {
+			return false;
 		}
 
 		con = con->pending.parent;
@@ -339,25 +331,6 @@ void view_autoconfigure(struct sway_view *view) {
 		}
 	}
 
-	if (!container_is_floating(con)) {
-		// In a tabbed or stacked container, the container's y is the top of the
-		// title area. We have to offset the surface y by the height of the title,
-		// bar, and disable any top border because we'll always have the title bar.
-		list_t *siblings = container_get_siblings(con);
-		bool show_titlebar = (siblings && siblings->length > 1)
-			|| !config->hide_lone_tab;
-		if (show_titlebar) {
-			enum sway_container_layout layout = container_parent_layout(con);
-			if (layout == L_TABBED) {
-				y_offset = container_titlebar_height();
-				con->pending.border_top = false;
-			} else if (layout == L_STACKED) {
-				y_offset = container_titlebar_height() * siblings->length;
-				con->pending.border_top = false;
-			}
-		}
-	}
-
 	double x, y, width, height;
 	switch (con->pending.border) {
 	default:
@@ -398,6 +371,11 @@ void view_autoconfigure(struct sway_view *view) {
 
 	con->pending.content_x = x;
 	con->pending.content_y = y;
+	if (view_is_content_scaled(view)) {
+		float scale = view_get_content_scale(view);
+		width /= scale;
+		height /= scale;
+	}
 	con->pending.content_width = fmax(width, 1);
 	con->pending.content_height = fmax(height, 1);
 }
@@ -830,11 +808,7 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 			&view->foreign_destroy);
 
 	struct sway_container *container = view->container;
-	if (target_sibling) {
-		container_add_sibling(target_sibling, container, 1);
-	} else if (ws) {
-		container = workspace_add_tiling(ws, container);
-	}
+	layout_add_view(ws, target_sibling, container);
 	ipc_event_window(view->container, "new");
 
 	if (decoration) {
@@ -868,9 +842,7 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 		container_set_fullscreen(view->container, true);
 		arrange_workspace(view->container->pending.workspace);
 	} else {
-		if (container->pending.parent) {
-			arrange_container(container->pending.parent);
-		} else if (container->pending.workspace) {
+		if (container->pending.workspace) {
 			arrange_workspace(container->pending.workspace);
 		}
 	}
@@ -878,6 +850,9 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 	view_execute_criteria(view);
 
 	bool set_focus = should_focus(view);
+	if (ws && set_focus && !container_is_floating(container)) {
+		set_focus = layout_modifiers_get_focus(ws);
+	}
 
 #if WLR_HAS_XWAYLAND
 	struct wlr_xwayland_surface *xsurface;
@@ -977,9 +952,9 @@ void view_center_and_clip_surface(struct sway_view *view) {
 		int y = (int) fmax(0, (con->current.content_height - view->geometry.height) / 2);
 		clip_to_geometry = !view->using_csd;
 
-		wlr_scene_node_set_position(&view->content_tree->node, x, y);
+		sway_scene_node_set_position(&view->content_tree->node, x, y);
 	} else {
-		wlr_scene_node_set_position(&view->content_tree->node, 0, 0);
+		sway_scene_node_set_position(&view->content_tree->node, 0, 0);
 	}
 
 	// only make sure to clip the content if there is content to clip
@@ -993,7 +968,7 @@ void view_center_and_clip_surface(struct sway_view *view) {
 				.height = con->current.content_height,
 			};
 		}
-		wlr_scene_subsurface_tree_set_clip(&con->view->content_tree->node, &clip);
+		sway_scene_subsurface_tree_set_clip(&con->view->content_tree->node, &clip);
 	}
 }
 
@@ -1112,21 +1087,6 @@ bool view_is_visible(struct sway_view *view) {
 			!workspace_is_visible(workspace)) {
 		return false;
 	}
-	// Check view isn't in a tabbed or stacked container on an inactive tab
-	struct sway_seat *seat = input_manager_current_seat();
-	struct sway_container *con = view->container;
-	while (con) {
-		enum sway_container_layout layout = container_parent_layout(con);
-		if ((layout == L_TABBED || layout == L_STACKED)
-				&& !container_is_floating(con)) {
-			struct sway_node *parent = con->pending.parent ?
-				&con->pending.parent->node : &con->pending.workspace->node;
-			if (seat_get_active_tiling_child(seat, parent) != &con->node) {
-				return false;
-			}
-		}
-		con = con->pending.parent;
-	}
 	// Check view isn't hidden by another fullscreen view
 	struct sway_container *fs = root->fullscreen_global ?
 		root->fullscreen_global : workspace->fullscreen;
@@ -1172,28 +1132,28 @@ void view_remove_saved_buffer(struct sway_view *view) {
 		return;
 	}
 
-	wlr_scene_node_destroy(&view->saved_surface_tree->node);
+	sway_scene_node_destroy(&view->saved_surface_tree->node);
 	view->saved_surface_tree = NULL;
-	wlr_scene_node_set_enabled(&view->content_tree->node, true);
+	sway_scene_node_set_enabled(&view->content_tree->node, true);
 }
 
-static void view_save_buffer_iterator(struct wlr_scene_buffer *buffer,
+static void view_save_buffer_iterator(struct sway_scene_buffer *buffer,
 		int sx, int sy, void *data) {
-	struct wlr_scene_tree *tree = data;
+	struct sway_scene_tree *tree = data;
 
-	struct wlr_scene_buffer *sbuf = wlr_scene_buffer_create(tree, NULL);
+	struct sway_scene_buffer *sbuf = sway_scene_buffer_create(tree, NULL);
 	if (!sbuf) {
 		sway_log(SWAY_ERROR, "Could not allocate a scene buffer when saving a surface");
 		return;
 	}
 
-	wlr_scene_buffer_set_dest_size(sbuf,
+	sway_scene_buffer_set_dest_size(sbuf,
 		buffer->dst_width, buffer->dst_height);
-	wlr_scene_buffer_set_opaque_region(sbuf, &buffer->opaque_region);
-	wlr_scene_buffer_set_source_box(sbuf, &buffer->src_box);
-	wlr_scene_node_set_position(&sbuf->node, sx, sy);
-	wlr_scene_buffer_set_transform(sbuf, buffer->transform);
-	wlr_scene_buffer_set_buffer(sbuf, buffer->buffer);
+	sway_scene_buffer_set_opaque_region(sbuf, &buffer->opaque_region);
+	sway_scene_buffer_set_source_box(sbuf, &buffer->src_box);
+	sway_scene_node_set_position(&sbuf->node, sx, sy);
+	sway_scene_buffer_set_transform(sbuf, buffer->transform);
+	sway_scene_buffer_set_buffer(sbuf, buffer->buffer);
 }
 
 void view_save_buffer(struct sway_view *view) {
@@ -1201,7 +1161,7 @@ void view_save_buffer(struct sway_view *view) {
 		view_remove_saved_buffer(view);
 	}
 
-	view->saved_surface_tree = wlr_scene_tree_create(view->scene_tree);
+	view->saved_surface_tree = sway_scene_tree_create(view->scene_tree);
 	if (!view->saved_surface_tree) {
 		sway_log(SWAY_ERROR, "Could not allocate a scene tree node when saving a surface");
 		return;
@@ -1209,13 +1169,13 @@ void view_save_buffer(struct sway_view *view) {
 
 	// Enable and disable the saved surface tree like so to atomitaclly update
 	// the tree. This will prevent over damaging or other weirdness.
-	wlr_scene_node_set_enabled(&view->saved_surface_tree->node, false);
+	sway_scene_node_set_enabled(&view->saved_surface_tree->node, false);
 
-	wlr_scene_node_for_each_buffer(&view->content_tree->node,
+	sway_scene_node_for_each_buffer(&view->content_tree->node,
 		view_save_buffer_iterator, view->saved_surface_tree);
 
-	wlr_scene_node_set_enabled(&view->content_tree->node, false);
-	wlr_scene_node_set_enabled(&view->saved_surface_tree->node, true);
+	sway_scene_node_set_enabled(&view->content_tree->node, false);
+	sway_scene_node_set_enabled(&view->saved_surface_tree->node, true);
 }
 
 bool view_is_transient_for(struct sway_view *child,
@@ -1237,7 +1197,7 @@ bool view_can_tear(struct sway_view *view) {
 	return false;
 }
 
-static void send_frame_done_iterator(struct wlr_scene_buffer *scene_buffer,
+static void send_frame_done_iterator(struct sway_scene_buffer *scene_buffer,
 		int x, int y, void *data) {
 	struct timespec *when = data;
 	wl_signal_emit_mutable(&scene_buffer->events.frame_done, when);
@@ -1247,8 +1207,28 @@ void view_send_frame_done(struct sway_view *view) {
 	struct timespec when;
 	clock_gettime(CLOCK_MONOTONIC, &when);
 
-	struct wlr_scene_node *node;
+	struct sway_scene_node *node;
 	wl_list_for_each(node, &view->content_tree->children, link) {
-		wlr_scene_node_for_each_buffer(node, send_frame_done_iterator, &when);
+		sway_scene_node_for_each_buffer(node, send_frame_done_iterator, &when);
 	}
+}
+
+void view_set_content_scale(struct sway_view *view, float scale) {
+	view->content_scale = scale;
+	transaction_commit_dirty();
+}
+
+float view_get_content_scale(struct sway_view *view) {
+	return view->content_scale;
+}
+
+void view_reset_content_scale(struct sway_view *view) {
+	if (view->content_scale > 0.0f) {
+		view->content_scale = -1.0f;
+		transaction_commit_dirty();
+	}
+}
+
+bool view_is_content_scaled(struct sway_view *view) {
+	return view->content_scale > 0.0f;
 }

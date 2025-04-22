@@ -3,7 +3,7 @@
 #include <wayland-server-core.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_scene.h>
+#include "sway/tree/scene.h"
 #include <wlr/types/wlr_tearing_control_v1.h>
 #include "sway/config.h"
 #if WLR_HAS_XWAYLAND
@@ -65,9 +65,9 @@ struct sway_view {
 	enum sway_view_type type;
 	const struct sway_view_impl *impl;
 
-	struct wlr_scene_tree *scene_tree;
-	struct wlr_scene_tree *content_tree;
-	struct wlr_scene_tree *saved_surface_tree;
+	struct sway_scene_tree *scene_tree;
+	struct sway_scene_tree *content_tree;
+	struct sway_scene_tree *saved_surface_tree;
 
 	struct sway_container *container; // NULL if unmapped and transactions finished
 	struct wlr_surface *surface; // NULL for unmapped views
@@ -119,6 +119,8 @@ struct sway_view {
 
 	enum sway_view_tearing_mode tearing_mode;
 	enum wp_tearing_control_v1_presentation_hint tearing_hint;
+
+	float content_scale;
 };
 
 struct sway_xdg_shell_view {
@@ -140,7 +142,7 @@ struct sway_xdg_shell_view {
 struct sway_xwayland_view {
 	struct sway_view view;
 
-	struct wlr_scene_tree *surface_tree;
+	struct sway_scene_tree *surface_tree;
 
 	struct wl_listener commit;
 	struct wl_listener request_move;
@@ -170,7 +172,7 @@ struct sway_xwayland_view {
 struct sway_xwayland_unmanaged {
 	struct wlr_xwayland_surface *wlr_xwayland_surface;
 
-	struct wlr_scene_surface *surface_scene;
+	struct sway_scene_surface *surface_scene;
 
 	struct wl_listener request_activate;
 	struct wl_listener request_configure;
@@ -186,15 +188,15 @@ struct sway_xwayland_unmanaged {
 #endif
 
 struct sway_popup_desc {
-	struct wlr_scene_node *relative;
+	struct sway_scene_node *relative;
 	struct sway_view *view;
 };
 
 struct sway_xdg_popup {
 	struct sway_view *view;
 
-	struct wlr_scene_tree *scene_tree;
-	struct wlr_scene_tree *xdg_surface_tree;
+	struct sway_scene_tree *scene_tree;
+	struct sway_scene_tree *xdg_surface_tree;
 	struct wlr_xdg_popup *wlr_xdg_popup;
 
 	struct sway_popup_desc desc;
@@ -350,5 +352,13 @@ void view_assign_ctx(struct sway_view *view, struct launcher_ctx *ctx);
 void view_send_frame_done(struct sway_view *view);
 
 bool view_can_tear(struct sway_view *view);
+
+void view_set_content_scale(struct sway_view *view, float scale);
+
+float view_get_content_scale(struct sway_view *view);
+
+void view_reset_content_scale(struct sway_view *view);
+
+bool view_is_content_scaled(struct sway_view *view);
 
 #endif

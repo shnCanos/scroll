@@ -1,12 +1,19 @@
 #include <strings.h>
-#include "log.h"
 #include "sway/commands.h"
 #include "sway/config.h"
 #include "sway/tree/arrange.h"
 #include "sway/tree/container.h"
 #include "sway/tree/view.h"
-#include "sway/tree/workspace.h"
 #include "util.h"
+
+struct cmd_results *cmd_fullscreen_movefocus(int argc, char **argv) {
+	struct cmd_results *error;
+	if ((error = checkarg(argc, "fullscreen_movefocus", EXPECTED_AT_LEAST, 1))) {
+		return error;
+	}
+	config->fullscreen_movefocus = parse_boolean(argv[0], config->fullscreen_movefocus);
+	return cmd_results_new(CMD_SUCCESS, NULL);
+}
 
 // fullscreen [enable|disable|toggle] [global]
 struct cmd_results *cmd_fullscreen(int argc, char **argv) {

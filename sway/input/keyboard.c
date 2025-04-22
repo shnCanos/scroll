@@ -452,6 +452,19 @@ static void handle_key_event(struct sway_keyboard *keyboard,
 	struct key_info keyinfo;
 	update_keyboard_state(keyboard, event->keycode, event->state, &keyinfo);
 
+	if (keyboard->key_press_cb) {
+		if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+			if (!keyboard->wlr->group) {
+				keyboard->key_press_cb(keyboard, event, keyboard->key_press_cb_data);
+			}
+		}
+		update_shortcut_state(
+			&keyboard->state_pressed_sent, event->keycode, event->state,
+			keyinfo.keycode, 0);
+		free(device_identifier);
+		return;
+	}
+
 	bool handled = false;
 	// Identify active release binding
 	struct sway_binding *binding_released = NULL;
@@ -1145,4 +1158,10 @@ void sway_keyboard_destroy(struct sway_keyboard *keyboard) {
 	sway_keyboard_disarm_key_repeat(keyboard);
 	wl_event_source_remove(keyboard->key_repeat_source);
 	free(keyboard);
+}
+
+void sway_keyboard_set_keypress_cb(struct sway_keyboard *keyboard,
+		sway_keyboard_cb_fn callback, void *callbak_data) {
+	keyboard->key_press_cb_data = callbak_data;
+	keyboard->key_press_cb = callback;
 }

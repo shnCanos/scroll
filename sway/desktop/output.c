@@ -3,6 +3,7 @@
 #include <strings.h>
 #include <time.h>
 #include <wayland-server-core.h>
+#include "sway/render.h"
 #include <wlr/config.h>
 #include <wlr/backend/headless.h>
 #include <wlr/render/swapchain.h>
@@ -39,6 +40,22 @@
 #include <wlr/backend/drm.h>
 #include <wlr/types/wlr_drm_lease_v1.h>
 #endif
+
+struct sway_output *output_for_coords(double lx, double ly) {
+	struct wlr_output *wlr_output = wlr_output_layout_output_at(
+			root->output_layout, lx, ly);
+	if (wlr_output == NULL) {
+		return NULL;
+	}
+
+	struct sway_output *output = wlr_output->data;
+	if (!output || !output->enabled) {
+		// output is being destroyed or is being enabled
+		return NULL;
+	}
+
+	return output;
+}
 
 bool output_match_name_or_id(struct sway_output *output,
 		const char *name_or_id) {
@@ -97,11 +114,11 @@ struct buffer_timer {
 };
 
 static int handle_buffer_timer(void *data) {
-	struct wlr_scene_buffer *buffer = data;
+	struct sway_scene_buffer *buffer = data;
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-	wlr_scene_buffer_send_frame_done(buffer, &now);
+	sway_scene_buffer_send_frame_done(buffer, &now);
 	return 0;
 }
 
@@ -114,7 +131,7 @@ static void handle_buffer_timer_destroy(struct wl_listener *listener,
 	free(timer);
 }
 
-static struct buffer_timer *buffer_timer_get_or_create(struct wlr_scene_buffer *buffer) {
+static struct buffer_timer *buffer_timer_get_or_create(struct sway_scene_buffer *buffer) {
 	struct buffer_timer *timer =
 		scene_descriptor_try_get(&buffer->node, SWAY_SCENE_DESC_BUFFER_TIMER);
 	if (timer) {
@@ -141,7 +158,7 @@ static struct buffer_timer *buffer_timer_get_or_create(struct wlr_scene_buffer *
 	return timer;
 }
 
-static void send_frame_done_iterator(struct wlr_scene_buffer *buffer,
+static void send_frame_done_iterator(struct sway_scene_buffer *buffer,
 		int x, int y, void *user_data) {
 	struct send_frame_done_data *data = user_data;
 	struct sway_output *output = data->output;
@@ -151,7 +168,7 @@ static void send_frame_done_iterator(struct wlr_scene_buffer *buffer,
 		return;
 	}
 
-	struct wlr_scene_node *current = &buffer->node;
+	struct sway_scene_node *current = &buffer->node;
 	while (true) {
 		struct sway_view *view = scene_descriptor_try_get(current,
 			SWAY_SCENE_DESC_VIEW);
@@ -179,16 +196,16 @@ static void send_frame_done_iterator(struct wlr_scene_buffer *buffer,
 	if (timer) {
 		wl_event_source_timer_update(timer->frame_done_timer, delay);
 	} else {
-		wlr_scene_buffer_send_frame_done(buffer, &data->when);
+		sway_scene_buffer_send_frame_done(buffer, &data->when);
 	}
 }
 
 static enum wlr_scale_filter_mode get_scale_filter(struct sway_output *output,
-		struct wlr_scene_buffer *buffer) {
+		struct sway_scene_buffer *buffer) {
 	// if we are scaling down, we should always choose linear
 	if (buffer->dst_width > 0 && buffer->dst_height > 0 && (
-			buffer->dst_width < buffer->WLR_PRIVATE.buffer_width ||
-			buffer->dst_height < buffer->WLR_PRIVATE.buffer_height)) {
+			buffer->dst_width < buffer->buffer_width ||
+			buffer->dst_height < buffer->buffer_height)) {
 		return WLR_SCALE_FILTER_BILINEAR;
 	}
 
@@ -203,7 +220,7 @@ static enum wlr_scale_filter_mode get_scale_filter(struct sway_output *output,
 }
 
 void output_configure_scene(struct sway_output *output,
-		struct wlr_scene_node *node, float opacity) {
+		struct sway_scene_node *node, float opacity) {
 	if (!node->enabled) {
 		return;
 	}
@@ -214,9 +231,9 @@ void output_configure_scene(struct sway_output *output,
 		opacity = con->alpha;
 	}
 
-	if (node->type == WLR_SCENE_NODE_BUFFER) {
-		struct wlr_scene_buffer *buffer = wlr_scene_buffer_from_node(node);
-		struct wlr_scene_surface *surface = wlr_scene_surface_try_from_buffer(buffer);
+	if (node->type == SWAY_SCENE_NODE_BUFFER) {
+		struct sway_scene_buffer *buffer = sway_scene_buffer_from_node(node);
+		struct sway_scene_surface *surface = sway_scene_surface_try_from_buffer(buffer);
 
 		if (surface) {
 			const struct wlr_alpha_modifier_surface_v1_state *alpha_modifier_state =
@@ -233,10 +250,10 @@ void output_configure_scene(struct sway_output *output,
 			buffer->filter_mode = get_scale_filter(output, buffer);
 		}
 
-		wlr_scene_buffer_set_opacity(buffer, opacity);
-	} else if (node->type == WLR_SCENE_NODE_TREE) {
-		struct wlr_scene_tree *tree = wlr_scene_tree_from_node(node);
-		struct wlr_scene_node *node;
+		sway_scene_buffer_set_opacity(buffer, opacity);
+	} else if (node->type == SWAY_SCENE_NODE_TREE) {
+		struct sway_scene_tree *tree = sway_scene_tree_from_node(node);
+		struct sway_scene_node *node;
 		wl_list_for_each(node, &tree->children, link) {
 			output_configure_scene(output, node, opacity);
 		}
@@ -270,18 +287,20 @@ static int output_repaint_timer_handler(void *data) {
 
 	output_configure_scene(output, &root->root_scene->tree.node, 1.0f);
 
-	struct wlr_scene_output_state_options opts = {
+	struct sway_scene_output_state_options opts = {
 		.color_transform = output->color_transform,
 	};
 
-	struct wlr_scene_output *scene_output = output->scene_output;
-	if (!wlr_scene_output_needs_frame(scene_output)) {
+	struct sway_scene_output *scene_output = output->scene_output;
+	if (!sway_scene_output_needs_frame(scene_output)) {
 		return 0;
 	}
 
 	struct wlr_output_state pending;
 	wlr_output_state_init(&pending);
-	if (!wlr_scene_output_build_state(output->scene_output, &pending, &opts)) {
+
+	bool ret = render_workspace_build_state(output, &pending, &opts);
+	if (!ret) {
 		wlr_output_state_finish(&pending);
 		return 0;
 	}
@@ -364,7 +383,7 @@ static void handle_frame(struct wl_listener *listener, void *user_data) {
 	clock_gettime(CLOCK_MONOTONIC, &data.when);
 	data.msec_until_refresh = msec_until_refresh;
 	data.output = output;
-	wlr_scene_output_for_each_buffer(output->scene_output, send_frame_done_iterator, &data);
+	sway_scene_output_for_each_buffer(output->scene_output, send_frame_done_iterator, &data);
 }
 
 void update_output_manager_config(struct sway_server *server) {
@@ -436,7 +455,7 @@ static void begin_destroy(struct sway_output *output) {
 	wl_list_remove(&output->frame.link);
 	wl_list_remove(&output->request_state.link);
 
-	wlr_scene_output_destroy(output->scene_output);
+	sway_scene_output_destroy(output->scene_output);
 	output->scene_output = NULL;
 	output->wlr_output->data = NULL;
 	output->wlr_output = NULL;
@@ -553,8 +572,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 	// Create the scene output here so we're not accidentally creating one for
 	// the fallback output
-	struct wlr_scene_output *scene_output =
-		wlr_scene_output_create(root->root_scene, wlr_output);
+	struct sway_scene_output *scene_output =
+		sway_scene_output_create(root->root_scene, wlr_output);
 	if (!scene_output) {
 		sway_log(SWAY_ERROR, "Failed to create a scene output");
 		return;
@@ -563,7 +582,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	struct sway_output *output = output_create(wlr_output);
 	if (!output) {
 		sway_log(SWAY_ERROR, "Failed to create a sway output");
-		wlr_scene_output_destroy(scene_output);
+		sway_scene_output_destroy(scene_output);
 		return;
 	}
 

@@ -7,7 +7,7 @@
 #include "sway/tree/container.h"
 #include "sway/tree/workspace.h"
 #include "log.h"
-
+#if 0
 static enum sway_container_layout parse_layout_string(char *s) {
 	if (strcasecmp(s, "splith") == 0) {
 		return L_HORIZ;
@@ -113,8 +113,12 @@ static enum sway_container_layout get_layout(int argc, char **argv,
 
 	return L_NONE;
 }
-
+#endif
 struct cmd_results *cmd_layout(int argc, char **argv) {
+#if 1
+	return cmd_results_new(CMD_INVALID,
+			"This command is not supported in sway-scroll");
+#else
 	struct cmd_results *error = NULL;
 	if ((error = checkarg(argc, "layout", EXPECTED_AT_LEAST, 1))) {
 		return error;
@@ -183,4 +187,5 @@ struct cmd_results *cmd_layout(int argc, char **argv) {
 	}
 
 	return cmd_results_new(CMD_SUCCESS, NULL);
+#endif
 }

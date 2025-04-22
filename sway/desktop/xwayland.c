@@ -5,7 +5,6 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_xdg_activation_v1.h>
-#include <wlr/types/wlr_scene.h>
 #include <wlr/xwayland.h>
 #include <xcb/xcb_icccm.h>
 #include "log.h"
@@ -18,6 +17,7 @@
 #include "sway/tree/arrange.h"
 #include "sway/tree/container.h"
 #include "sway/server.h"
+#include "sway/tree/scene.h"
 #include "sway/tree/view.h"
 #include "sway/tree/workspace.h"
 
@@ -50,7 +50,7 @@ static void unmanaged_handle_set_geometry(struct wl_listener *listener, void *da
 		wl_container_of(listener, surface, set_geometry);
 	struct wlr_xwayland_surface *xsurface = surface->wlr_xwayland_surface;
 
-	wlr_scene_node_set_position(&surface->surface_scene->buffer->node, xsurface->x, xsurface->y);
+	sway_scene_node_set_position(&surface->surface_scene->buffer->node, xsurface->x, xsurface->y);
 }
 
 static void unmanaged_handle_map(struct wl_listener *listener, void *data) {
@@ -58,13 +58,13 @@ static void unmanaged_handle_map(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, surface, map);
 	struct wlr_xwayland_surface *xsurface = surface->wlr_xwayland_surface;
 
-	surface->surface_scene = wlr_scene_surface_create(root->layers.unmanaged,
+	surface->surface_scene = sway_scene_surface_create(root->layers.unmanaged,
 		xsurface->surface);
 
 	if (surface->surface_scene) {
 		scene_descriptor_assign(&surface->surface_scene->buffer->node,
 			SWAY_SCENE_DESC_XWAYLAND_UNMANAGED, surface);
-		wlr_scene_node_set_position(&surface->surface_scene->buffer->node,
+		sway_scene_node_set_position(&surface->surface_scene->buffer->node,
 			xsurface->x, xsurface->y);
 
 		wl_signal_add(&xsurface->events.set_geometry, &surface->set_geometry);
@@ -87,7 +87,7 @@ static void unmanaged_handle_unmap(struct wl_listener *listener, void *data) {
 	if (surface->surface_scene) {
 		wl_list_remove(&surface->set_geometry.link);
 
-		wlr_scene_node_destroy(&surface->surface_scene->buffer->node);
+		sway_scene_node_destroy(&surface->surface_scene->buffer->node);
 		surface->surface_scene = NULL;
 	}
 
@@ -439,6 +439,13 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		view_center_and_clip_surface(view);
 	}
 
+	// If the position changed, re-configure view so the client knows where
+	// to set its surfaces (unmanaged popups etc.).
+	struct sway_container *container = view->container;
+	if (container->current.x != container->pending.x || container->current.y != container->pending.y) {
+		node_set_dirty(&container->node);
+	}
+
 	if (view->container->node.instruction) {
 		bool successful = transaction_notify_view_ready_by_geometry(view,
 				xsurface->x, xsurface->y, state->width, state->height);
@@ -498,7 +505,7 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	wl_list_remove(&xwayland_view->surface_tree_destroy.link);
 
 	if (xwayland_view->surface_tree) {
-		wlr_scene_node_destroy(&xwayland_view->surface_tree->node);
+		sway_scene_node_destroy(&xwayland_view->surface_tree->node);
 		xwayland_view->surface_tree = NULL;
 	}
 
@@ -520,6 +527,8 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	view->natural_width = xsurface->width;
 	view->natural_height = xsurface->height;
 
+	view->content_scale = -1.0f;
+
 	// Wire up the commit listener here, because xwayland map/unmap can change
 	// the underlying wlr_surface
 	wl_signal_add(&xsurface->surface->events.commit, &xwayland_view->commit);
@@ -528,7 +537,7 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	// Put it back into the tree
 	view_map(view, xsurface->surface, xsurface->fullscreen, NULL, false);
 
-	xwayland_view->surface_tree = wlr_scene_subsurface_tree_create(
+	xwayland_view->surface_tree = sway_scene_subsurface_tree_create(
 		xwayland_view->view.content_tree, xsurface->surface);
 
 	if (xwayland_view->surface_tree) {

@@ -96,6 +96,27 @@ void list_move_to_end(list_t *list, void *item) {
 	list_add(list, item);
 }
 
+void list_move_to(list_t *list, int index, void *item) {
+	int i;
+	for (i = 0; i < list->length; ++i) {
+		if (list->items[i] == item) {
+			break;
+		}
+	}
+	if (!sway_assert(i < list->length, "Item not found in list")) {
+		return;
+	}
+	if (i == index) {
+		return;
+	}
+	if (i < index) {
+		memmove(&list->items[i], &list->items[i + 1], sizeof(void*) * (index - i));
+	} else {
+		memmove(&list->items[index + 1], &list->items[index], sizeof(void*) * (i - index));
+	}
+	list->items[index] = item;
+}
+
 static void list_rotate(list_t *list, int from, int to) {
 	void *tmp = list->items[to];
 

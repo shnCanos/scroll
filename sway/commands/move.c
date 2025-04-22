@@ -76,20 +76,6 @@ static struct sway_output *output_in_direction(const char *direction_string,
 	return output_by_name_or_id(direction_string);
 }
 
-static bool is_parallel(enum sway_container_layout layout,
-		enum wlr_direction dir) {
-	switch (layout) {
-	case L_TABBED:
-	case L_HORIZ:
-		return dir == WLR_DIRECTION_LEFT || dir == WLR_DIRECTION_RIGHT;
-	case L_STACKED:
-	case L_VERT:
-		return dir == WLR_DIRECTION_UP || dir == WLR_DIRECTION_DOWN;
-	default:
-		return false;
-	}
-}
-
 /**
  * Ensures all seats focus the fullscreen container if needed.
  */
@@ -107,92 +93,6 @@ static void workspace_focus_fullscreen(struct sway_workspace *workspace) {
 			seat_set_raw_focus(seat, new_focus);
 		}
 	}
-}
-
-static void container_move_to_container_from_direction(
-		struct sway_container *container, struct sway_container *destination,
-		enum wlr_direction move_dir) {
-	if (destination->view) {
-		if (destination->pending.parent == container->pending.parent &&
-				destination->pending.workspace == container->pending.workspace) {
-			sway_log(SWAY_DEBUG, "Swapping siblings");
-			list_t *siblings = container_get_siblings(container);
-			int container_index = list_find(siblings, container);
-			int destination_index = list_find(siblings, destination);
-			list_swap(siblings, container_index, destination_index);
-			container_update_representation(container);
-		} else {
-			sway_log(SWAY_DEBUG, "Promoting to sibling of cousin");
-			int offset =
-				move_dir == WLR_DIRECTION_LEFT || move_dir == WLR_DIRECTION_UP;
-			int index = container_sibling_index(destination) + offset;
-			if (destination->pending.parent) {
-				container_insert_child(destination->pending.parent, container, index);
-			} else {
-				workspace_insert_tiling(destination->pending.workspace,
-						container, index);
-			}
-			container->pending.width = container->pending.height = 0;
-			container->width_fraction = container->height_fraction = 0;
-			workspace_squash(destination->pending.workspace);
-		}
-		return;
-	}
-
-	if (is_parallel(destination->pending.layout, move_dir)) {
-		sway_log(SWAY_DEBUG, "Reparenting container (parallel)");
-		int index =
-			move_dir == WLR_DIRECTION_RIGHT || move_dir == WLR_DIRECTION_DOWN ?
-			0 : destination->pending.children->length;
-		container_insert_child(destination, container, index);
-		container->pending.width = container->pending.height = 0;
-		container->width_fraction = container->height_fraction = 0;
-		workspace_squash(destination->pending.workspace);
-		return;
-	}
-
-	sway_log(SWAY_DEBUG, "Reparenting container (perpendicular)");
-	struct sway_node *focus_inactive = seat_get_active_tiling_child(
-			config->handler_context.seat, &destination->node);
-	if (!focus_inactive || focus_inactive == &destination->node) {
-		// The container has no children
-		container_add_child(destination, container);
-		return;
-	}
-
-	// Try again but with the child
-	container_move_to_container_from_direction(container,
-			focus_inactive->sway_container, move_dir);
-}
-
-static void container_move_to_workspace_from_direction(
-		struct sway_container *container, struct sway_workspace *workspace,
-		enum wlr_direction move_dir) {
-	container->pending.width = container->pending.height = 0;
-	container->width_fraction = container->height_fraction = 0;
-
-	if (is_parallel(workspace->layout, move_dir)) {
-		sway_log(SWAY_DEBUG, "Reparenting container (parallel)");
-		int index =
-			move_dir == WLR_DIRECTION_RIGHT || move_dir == WLR_DIRECTION_DOWN ?
-			0 : workspace->tiling->length;
-		workspace_insert_tiling(workspace, container, index);
-		return;
-	}
-
-	sway_log(SWAY_DEBUG, "Reparenting container (perpendicular)");
-	struct sway_container *focus_inactive = seat_get_focus_inactive_tiling(
-			config->handler_context.seat, workspace);
-	if (!focus_inactive) {
-		// The workspace has no tiling children
-		workspace_add_tiling(workspace, container);
-		return;
-	}
-	while (focus_inactive->pending.parent) {
-		focus_inactive = focus_inactive->pending.parent;
-	}
-	container_move_to_container_from_direction(container, focus_inactive,
-			move_dir);
 }
 
 static void container_move_to_workspace(struct sway_container *container,
@@ -219,15 +119,7 @@ static void container_move_to_workspace(struct sway_container *container,
 			}
 		}
 	} else {
-		container_detach(container);
-		if (workspace_is_empty(workspace) && container->pending.children) {
-			workspace_unwrap_children(workspace, container);
-		} else {
-			container->pending.width = container->pending.height = 0;
-			container->width_fraction = container->height_fraction = 0;
-			workspace_add_tiling(workspace, container);
-		}
-		container_update_representation(container);
+		layout_move_container_to_workspace(container, workspace);
 	}
 	if (container->view) {
 		ipc_event_window(container, "move");
@@ -284,7 +176,7 @@ static bool container_move_to_next_output(struct sway_container *container,
 		}
 		switch (container->pending.fullscreen_mode) {
 		case FULLSCREEN_NONE:
-			container_move_to_workspace_from_direction(container, ws, move_dir);
+			container_move_to_workspace(container, ws);
 			return true;
 		case FULLSCREEN_WORKSPACE:
 			container_move_to_workspace(container, ws);
@@ -298,119 +190,18 @@ static bool container_move_to_next_output(struct sway_container *container,
 
 // Returns true if moved
 static bool container_move_in_direction(struct sway_container *container,
-		enum wlr_direction move_dir) {
+		enum sway_layout_direction move_dir, bool nomode) {
 	// If moving a fullscreen view, only consider outputs
 	switch (container->pending.fullscreen_mode) {
 	case FULLSCREEN_NONE:
 		break;
 	case FULLSCREEN_WORKSPACE:
 		return container_move_to_next_output(container,
-				container->pending.workspace->output, move_dir);
+				container->pending.workspace->output, layout_to_wlr_direction(move_dir));
 	case FULLSCREEN_GLOBAL:
 		return false;
 	}
-
-	int offs =
-		move_dir == WLR_DIRECTION_LEFT || move_dir == WLR_DIRECTION_UP ? -1 : 1;
-	int index = -1;
-	int	desired = -1;
-	list_t *siblings = NULL;
-	struct sway_container *target = NULL;
-
-	// Look for a suitable ancestor of the container to move within
-	struct sway_container *ancestor = NULL;
-	struct sway_container *current = container;
-	bool wrapped = false;
-	while (!ancestor) {
-		// Don't allow containers to move out of their
-		// fullscreen or floating parent
-		if (current->pending.fullscreen_mode || container_is_floating(current)) {
-			return false;
-		}
-
-		enum sway_container_layout parent_layout = container_parent_layout(current);
-		if (!is_parallel(parent_layout, move_dir)) {
-			if (!current->pending.parent) {
-				// No parallel parent, so we reorient the workspace
-				current = workspace_wrap_children(current->pending.workspace);
-				current->pending.workspace->layout =
-					move_dir == WLR_DIRECTION_LEFT ||
-					move_dir == WLR_DIRECTION_RIGHT ?
-					L_HORIZ : L_VERT;
-				container->pending.height = container->pending.width = 0;
-				container->height_fraction = container->width_fraction = 0;
-				workspace_update_representation(current->pending.workspace);
-				wrapped = true;
-			} else {
-				// Keep looking for a parallel parent
-				current = current->pending.parent;
-			}
-			continue;
-		}
-
-		// Only scratchpad hidden containers don't have siblings
-		// so siblings != NULL here
-		siblings = container_get_siblings(current);
-		index = list_find(siblings, current);
-		desired = index + offs;
-		target = desired == -1 || desired == siblings->length ?
-				NULL : siblings->items[desired];
-
-		// If the move is simple we can complete it here early
-		if (current == container) {
-			if (target) {
-				// Container will swap with or descend into its neighbor
-				container_move_to_container_from_direction(container,
-						target, move_dir);
-				return true;
-			} else if (!container->pending.parent) {
-				// Container is at workspace level so we move it to the
-				// next workspace if possible
-				return container_move_to_next_output(container,
-						current->pending.workspace->output, move_dir);
-			} else {
-				// Container has escaped its immediate parallel parent
-				current = current->pending.parent;
-				continue;
-			}
-		}
-
-		// We found a suitable ancestor, the loop will end
-		ancestor = current;
-	}
-
-	if (target) {
-		// Container will move in with its cousin
-		container_move_to_container_from_direction(container,
-				target, move_dir);
-		return true;
-	} else if (!wrapped && !container->pending.parent->pending.parent &&
-			container->pending.parent->pending.children->length == 1) {
-		// Treat singleton children as if they are at workspace level like i3
-		// https://github.com/i3/i3/blob/1d9160f2d247dbaa83fb62f02fd7041dec767fc2/src/move.c#L367
-		return container_move_to_next_output(container,
-				ancestor->pending.workspace->output, move_dir);
-	} else {
-		// Container will be promoted
-		struct sway_container *old_parent = container->pending.parent;
-		if (ancestor->pending.parent) {
-			// Container will move in with its parent
-			container_insert_child(ancestor->pending.parent, container,
-					index + (offs < 0 ? 0 : 1));
-		} else {
-			// Container will move to workspace level,
-			// may be re-split by workspace_layout
-			workspace_insert_tiling(ancestor->pending.workspace, container,
-					index + (offs < 0 ? 0 : 1));
-		}
-		ancestor->pending.height = ancestor->pending.width = 0;
-		ancestor->height_fraction = ancestor->width_fraction = 0;
-		if (old_parent) {
-			container_reap_empty(old_parent);
-		}
-		workspace_squash(container->pending.workspace);
-		return true;
-	}
+	return layout_move_container(container, move_dir, nomode);
 }
 
 static struct cmd_results *cmd_move_to_scratchpad(void);
@@ -512,8 +303,7 @@ static struct cmd_results *cmd_move_container(bool no_auto_back_and_forth,
 			arrange_workspace(ws);
 		}
 		free(ws_name);
-		struct sway_container *dst = seat_get_focus_inactive_tiling(seat, ws);
-		destination = dst ? &dst->node : &ws->node;
+		destination = &ws->node;
 	} else if (strcasecmp(argv[0], "output") == 0) {
 		struct sway_output *new_output = output_in_direction(argv[1],
 				old_output, container->pending.x, container->pending.y);
@@ -521,14 +311,14 @@ static struct cmd_results *cmd_move_container(bool no_auto_back_and_forth,
 			return cmd_results_new(CMD_FAILURE,
 				"Can't find output with name/direction '%s'", argv[1]);
 		}
-		destination = seat_get_focus_inactive(seat, &new_output->node);
+		destination = &new_output->current.active_workspace->node;
 	} else if (strcasecmp(argv[0], "mark") == 0) {
 		struct sway_container *dest_con = container_find_mark(argv[1]);
 		if (dest_con == NULL) {
 			return cmd_results_new(CMD_FAILURE,
 					"Mark '%s' not found", argv[1]);
 		}
-		destination = &dest_con->node;
+		destination = &dest_con->pending.workspace->node;
 	} else {
 		return cmd_results_new(CMD_INVALID, "%s", expected_syntax);
 	}
@@ -597,7 +387,7 @@ static struct cmd_results *cmd_move_container(bool no_auto_back_and_forth,
 	// restore focus
 	if (focus == &container->node) {
 		focus = NULL;
-		if (old_parent) {
+		if (old_parent != container->pending.parent) {
 			focus = seat_get_focus_inactive(seat, &old_parent->node);
 		}
 		if (!focus && old_ws) {
@@ -701,13 +491,18 @@ static struct cmd_results *cmd_move_workspace(int argc, char **argv) {
 }
 
 static struct cmd_results *cmd_move_in_direction(
-		enum wlr_direction direction, int argc, char **argv) {
+		enum sway_layout_direction direction, int argc, char **argv) {
 	int move_amt = 10;
+	bool nomode = false;
 	if (argc) {
-		char *inv;
-		move_amt = (int)strtol(argv[0], &inv, 10);
-		if (*inv != '\0' && strcasecmp(inv, "px") != 0) {
-			return cmd_results_new(CMD_FAILURE, "Invalid distance specified");
+		if (strcasecmp(argv[0], "nomode") == 0) {
+			nomode = true;
+		} else {
+			char *inv;
+			move_amt = (int)strtol(argv[0], &inv, 10);
+			if (*inv != '\0' && strcasecmp(inv, "px") != 0) {
+				return cmd_results_new(CMD_FAILURE, "Invalid distance specified");
+			}
 		}
 	}
 
@@ -724,18 +519,20 @@ static struct cmd_results *cmd_move_in_direction(
 		double lx = container->pending.x;
 		double ly = container->pending.y;
 		switch (direction) {
-		case WLR_DIRECTION_LEFT:
+		case DIR_LEFT:
 			lx -= move_amt;
 			break;
-		case WLR_DIRECTION_RIGHT:
+		case DIR_RIGHT:
 			lx += move_amt;
 			break;
-		case WLR_DIRECTION_UP:
+		case DIR_UP:
 			ly -= move_amt;
 			break;
-		case WLR_DIRECTION_DOWN:
+		case DIR_DOWN:
 			ly += move_amt;
 			break;
+		default:
+			return cmd_results_new(CMD_FAILURE, "Invalid direction for floating container");
 		}
 		container_floating_move_to(container, lx, ly);
 		return cmd_results_new(CMD_SUCCESS, NULL);
@@ -743,7 +540,7 @@ static struct cmd_results *cmd_move_in_direction(
 	struct sway_workspace *old_ws = container->pending.workspace;
 	struct sway_container *old_parent = container->pending.parent;
 
-	if (!container_move_in_direction(container, direction)) {
+	if (!container_move_in_direction(container, direction, nomode)) {
 		// Container didn't move
 		return cmd_results_new(CMD_SUCCESS, NULL);
 	}
@@ -960,7 +757,7 @@ static struct cmd_results *cmd_move_to_scratchpad(void) {
 	if (node->type == N_WORKSPACE) {
 		// Wrap the workspace's children in a container
 		con = workspace_wrap_children(ws);
-		ws->layout = L_HORIZ;
+		layout_modifiers_set_mode(ws, L_HORIZ);
 	}
 
 	// If the container is in a floating split container,
@@ -980,7 +777,7 @@ static struct cmd_results *cmd_move_to_scratchpad(void) {
 }
 
 static const char expected_full_syntax[] = "Expected "
-	"'move left|right|up|down [<amount> [px]]'"
+	"'move left|right|up|down|beginning|end [<amount> [px]|nomode]'"
 	" or 'move [--no-auto-back-and-forth] [window|container] [to] workspace"
 	"  <name>|next|prev|next_on_output|prev_on_output|current|(number <num>)'"
 	" or 'move [window|container] [to] output <name/id>|left|right|up|down'"
@@ -1002,13 +799,17 @@ struct cmd_results *cmd_move(int argc, char **argv) {
 	}
 
 	if (strcasecmp(argv[0], "left") == 0) {
-		return cmd_move_in_direction(WLR_DIRECTION_LEFT, --argc, ++argv);
+		return cmd_move_in_direction(DIR_LEFT, --argc, ++argv);
 	} else if (strcasecmp(argv[0], "right") == 0) {
-		return cmd_move_in_direction(WLR_DIRECTION_RIGHT, --argc, ++argv);
+		return cmd_move_in_direction(DIR_RIGHT, --argc, ++argv);
 	} else if (strcasecmp(argv[0], "up") == 0) {
-		return cmd_move_in_direction(WLR_DIRECTION_UP, --argc, ++argv);
+		return cmd_move_in_direction(DIR_UP, --argc, ++argv);
 	} else if (strcasecmp(argv[0], "down") == 0) {
-		return cmd_move_in_direction(WLR_DIRECTION_DOWN, --argc, ++argv);
+		return cmd_move_in_direction(DIR_DOWN, --argc, ++argv);
+	} else if (strcasecmp(argv[0], "beginning") == 0) {
+		return cmd_move_in_direction(DIR_BEGIN, --argc, ++argv);
+	} else if (strcasecmp(argv[0], "end") == 0) {
+		return cmd_move_in_direction(DIR_END, --argc, ++argv);
 	} else if (strcasecmp(argv[0], "workspace") == 0 && argc >= 2
 			&& (strcasecmp(argv[1], "to") == 0 ||
 				strcasecmp(argv[1], "output") == 0)) {

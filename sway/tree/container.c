@@ -30,7 +30,7 @@ static void handle_output_enter(
 		struct wl_listener *listener, void *data) {
 	struct sway_container *con = wl_container_of(
 			listener, con, output_enter);
-	struct wlr_scene_output *output = data;
+	struct sway_scene_output *output = data;
 
 	if (con->view->foreign_toplevel) {
 		wlr_foreign_toplevel_handle_v1_output_enter(
@@ -42,7 +42,7 @@ static void handle_output_leave(
 		struct wl_listener *listener, void *data) {
 	struct sway_container *con = wl_container_of(
 			listener, con, output_leave);
-	struct wlr_scene_output *output = data;
+	struct sway_scene_output *output = data;
 
 	if (con->view->foreign_toplevel) {
 		wlr_foreign_toplevel_handle_v1_output_leave(
@@ -59,11 +59,11 @@ static void handle_destroy(
 }
 
 static bool handle_point_accepts_input(
-		struct wlr_scene_buffer *buffer, double *x, double *y) {
+		struct sway_scene_buffer *buffer, double *x, double *y) {
 	return false;
 }
 
-static struct wlr_scene_rect *alloc_rect_node(struct wlr_scene_tree *parent,
+static struct sway_scene_rect *alloc_rect_node(struct sway_scene_tree *parent,
 		bool *failed) {
 	if (*failed) {
 		return NULL;
@@ -71,10 +71,10 @@ static struct wlr_scene_rect *alloc_rect_node(struct wlr_scene_tree *parent,
 
 	// just pass in random values. These will be overwritten when
 	// they need to be used.
-	struct wlr_scene_rect *rect = wlr_scene_rect_create(
+	struct sway_scene_rect *rect = sway_scene_rect_create(
 		parent, 0, 0, (float[4]){0.f, 0.f, 0.f, 1.f});
 	if (!rect) {
-		sway_log(SWAY_ERROR, "Failed to allocate a wlr_scene_rect");
+		sway_log(SWAY_ERROR, "Failed to allocate a sway_scene_rect");
 		*failed = true;
 	}
 
@@ -102,6 +102,8 @@ struct sway_container *container_create(struct sway_view *view) {
 	//       border everything gets disabled. We only render the content iff there
 	//       is a border as well)
 	//     - buffer used for output enter/leave events for foreign_toplevel
+	//   - jump
+	//     - text
 	bool failed = false;
 	c->scene_tree = alloc_scene_tree(root->staging, &failed);
 
@@ -123,6 +125,10 @@ struct sway_container *container_create(struct sway_view *view) {
 	c->border.tree = alloc_scene_tree(c->scene_tree, &failed);
 	c->content_tree = alloc_scene_tree(c->border.tree, &failed);
 
+	c->jump.text = NULL;
+	c->jump.tree = alloc_scene_tree(c->scene_tree, &failed);
+	sway_scene_node_set_enabled(&c->jump.tree->node, false);
+
 	if (view) {
 		// only containers with views can have borders
 		c->border.top = alloc_rect_node(c->border.tree, &failed);
@@ -130,7 +136,7 @@ struct sway_container *container_create(struct sway_view *view) {
 		c->border.left = alloc_rect_node(c->border.tree, &failed);
 		c->border.right = alloc_rect_node(c->border.tree, &failed);
 
-		c->output_handler = wlr_scene_buffer_create(c->border.tree, NULL);
+		c->output_handler = sway_scene_buffer_create(c->border.tree, NULL);
 		if (!c->output_handler) {
 			sway_log(SWAY_ERROR, "Failed to allocate a scene node");
 			failed = true;
@@ -156,7 +162,7 @@ struct sway_container *container_create(struct sway_view *view) {
 	}
 
 	if (failed) {
-		wlr_scene_node_destroy(&c->scene_tree->node);
+		sway_scene_node_destroy(&c->scene_tree->node);
 		free(c);
 		return NULL;
 	}
@@ -242,7 +248,7 @@ static bool container_is_current_floating(struct sway_container *container) {
 }
 
 // scene rect wants premultiplied colors
-static void scene_rect_set_color(struct wlr_scene_rect *rect,
+static void scene_rect_set_color(struct sway_scene_rect *rect,
 		const float color[4], float opacity) {
 	const float premultiplied[] = {
 		color[0] * color[3] * opacity,
@@ -251,7 +257,7 @@ static void scene_rect_set_color(struct wlr_scene_rect *rect,
 		color[3] * opacity,
 	};
 
-	wlr_scene_rect_set_color(rect, premultiplied);
+	sway_scene_rect_set_color(rect, premultiplied);
 }
 
 void container_update(struct sway_container *con) {
@@ -265,7 +271,7 @@ void container_update(struct sway_container *con) {
 		layout = con->current.parent->current.layout;
 	} else if (con->current.workspace) {
 		siblings = con->current.workspace->current.tiling;
-		layout = con->current.workspace->current.layout;
+		layout = layout_modifiers_get_mode(con->current.workspace);
 	}
 
 	float bottom[4], right[4];
@@ -280,14 +286,14 @@ void container_update(struct sway_container *con) {
 		}
 	}
 
-	struct wlr_scene_node *node;
+	struct sway_scene_node *node;
 	wl_list_for_each(node, &con->title_bar.border->children, link) {
-		struct wlr_scene_rect *rect = wlr_scene_rect_from_node(node);
+		struct sway_scene_rect *rect = sway_scene_rect_from_node(node);
 		scene_rect_set_color(rect, colors->border, alpha);
 	}
 
 	wl_list_for_each(node, &con->title_bar.background->children, link) {
-		struct wlr_scene_rect *rect = wlr_scene_rect_from_node(node);
+		struct sway_scene_rect *rect = sway_scene_rect_from_node(node);
 		scene_rect_set_color(rect, colors->background, alpha);
 	}
 
@@ -317,25 +323,25 @@ void container_update_itself_and_parents(struct sway_container *con) {
 	}
 }
 
-static void update_rect_list(struct wlr_scene_tree *tree, pixman_region32_t *region) {
+static void update_rect_list(struct sway_scene_tree *tree, pixman_region32_t *region) {
 	int len;
 	const pixman_box32_t *rects = pixman_region32_rectangles(region, &len);
 
-	wlr_scene_node_set_enabled(&tree->node, len > 0);
+	sway_scene_node_set_enabled(&tree->node, len > 0);
 	if (len == 0) {
 		return;
 	}
 
 	int i = 0;
-	struct wlr_scene_node *node;
+	struct sway_scene_node *node;
 	wl_list_for_each(node, &tree->children, link) {
-		struct wlr_scene_rect *rect = wlr_scene_rect_from_node(node);
-		wlr_scene_node_set_enabled(&rect->node, i < len);
+		struct sway_scene_rect *rect = sway_scene_rect_from_node(node);
+		sway_scene_node_set_enabled(&rect->node, i < len);
 
 		if (i < len) {
 			const pixman_box32_t *box = &rects[i++];
-			wlr_scene_node_set_position(&rect->node, box->x1, box->y1);
-			wlr_scene_rect_set_size(rect, box->x2 - box->x1, box->y2 - box->y1);
+			sway_scene_node_set_position(&rect->node, box->x1, box->y1);
+			sway_scene_rect_set_size(rect, box->x2 - box->x1, box->y2 - box->y1);
 		}
 	}
 }
@@ -367,7 +373,7 @@ void container_arrange_title_bar(struct sway_container *con) {
 		alloc_width = MAX(alloc_width, 0);
 
 		sway_text_node_set_max_width(node, alloc_width);
-		wlr_scene_node_set_position(node->node,
+		sway_scene_node_set_position(node->node,
 			h_padding, (height - node->height) >> 1);
 
 		pixman_region32_union_rect(&text_area, &text_area,
@@ -393,7 +399,7 @@ void container_arrange_title_bar(struct sway_container *con) {
 		alloc_width = MAX(alloc_width, 0);
 
 		sway_text_node_set_max_width(node, alloc_width);
-		wlr_scene_node_set_position(node->node,
+		sway_scene_node_set_position(node->node,
 			h_padding, (height - node->height) >> 1);
 
 		pixman_region32_union_rect(&text_area, &text_area,
@@ -458,7 +464,7 @@ void container_update_marks(struct sway_container *con) {
 
 	if (!buffer) {
 		if (con->title_bar.marks_text) {
-			wlr_scene_node_destroy(con->title_bar.marks_text->node);
+			sway_scene_node_destroy(con->title_bar.marks_text->node);
 			con->title_bar.marks_text = NULL;
 		}
 	} else if (!con->title_bar.marks_text) {
@@ -482,7 +488,7 @@ void container_update_title_bar(struct sway_container *con) {
 	struct border_colors *colors = container_get_current_colors(con);
 
 	if (con->title_bar.title_text) {
-		wlr_scene_node_destroy(con->title_bar.title_text->node);
+		sway_scene_node_destroy(con->title_bar.title_text->node);
 		con->title_bar.title_text = NULL;
 	}
 
@@ -492,7 +498,7 @@ void container_update_title_bar(struct sway_container *con) {
 	// we always have to remake these text buffers completely for text font
 	// changes etc...
 	if (con->title_bar.marks_text) {
-		wlr_scene_node_destroy(con->title_bar.marks_text->node);
+		sway_scene_node_destroy(con->title_bar.marks_text->node);
 		con->title_bar.marks_text = NULL;
 	}
 
@@ -519,14 +525,14 @@ void container_destroy(struct sway_container *con) {
 
 	if (con->view && con->view->container == con) {
 		con->view->container = NULL;
-		wlr_scene_node_destroy(&con->output_handler->node);
+		sway_scene_node_destroy(&con->output_handler->node);
 		if (con->view->destroying) {
 			view_destroy(con->view);
 		}
 	}
 
 	scene_node_disown_children(con->content_tree);
-	wlr_scene_node_destroy(&con->scene_tree->node);
+	sway_scene_node_destroy(&con->scene_tree->node);
 	free(con);
 }
 
@@ -772,12 +778,6 @@ size_t container_build_representation(enum sway_container_layout layout,
 		break;
 	case L_HORIZ:
 		lenient_strcat(buffer, "H[");
-		break;
-	case L_TABBED:
-		lenient_strcat(buffer, "T[");
-		break;
-	case L_STACKED:
-		lenient_strcat(buffer, "S[");
 		break;
 	case L_NONE:
 		lenient_strcat(buffer, "D[");
@@ -1045,20 +1045,7 @@ void container_set_floating(struct sway_container *container, bool enable) {
 		container_detach(container);
 		struct sway_container *reference =
 			seat_get_focus_inactive_tiling(seat, workspace);
-		if (reference) {
-			if (reference->view) {
-				container_add_sibling(reference, container, 1);
-			} else {
-				container_add_child(reference, container);
-			}
-			container->pending.width = reference->pending.width;
-			container->pending.height = reference->pending.height;
-		} else {
-			struct sway_container *other =
-				workspace_add_tiling(workspace, container);
-			other->pending.width = workspace->width;
-			other->pending.height = workspace->height;
-		}
+		layout_add_view(workspace, reference, container);
 		if (container->view) {
 			view_set_tiled(container->view, true);
 			if (container->view->using_csd) {
@@ -1070,8 +1057,6 @@ void container_set_floating(struct sway_container *container, bool enable) {
 				}
 			}
 		}
-		container->width_fraction = 0;
-		container->height_fraction = 0;
 	}
 
 	container_end_mouse_operation(container);
@@ -1419,7 +1404,7 @@ enum sway_container_layout container_parent_layout(struct sway_container *con) {
 		return con->pending.parent->pending.layout;
 	}
 	if (con->pending.workspace) {
-		return con->pending.workspace->layout;
+		return layout_modifiers_get_mode(con->pending.workspace);
 	}
 	return L_NONE;
 }
@@ -1571,6 +1556,7 @@ void container_replace(struct sway_container *container,
 
 struct sway_container *container_split(struct sway_container *child,
 		enum sway_container_layout layout) {
+#if 0
 	// i3 doesn't split singleton H/V containers
 	// https://github.com/i3/i3/blob/3cd1c45eba6de073bc4300eebb4e1cc1a0c4479a/src/tree.c#L354
 	if (child->pending.parent || child->pending.workspace) {
@@ -1585,14 +1571,14 @@ struct sway_container *container_split(struct sway_container *child,
 					child->pending.parent->pending.layout = layout;
 					container_update_representation(child->pending.parent);
 				} else {
-					child->pending.workspace->layout = layout;
+					layout_modifiers_set_mode(&child->pending.workspace->layout, layout);
 					workspace_update_representation(child->pending.workspace);
 				}
 				return child;
 			}
 		}
 	}
-
+#endif
 	struct sway_seat *seat = input_manager_get_default_seat();
 	bool set_focus = (seat_get_focus(seat) == &child->node);
 
@@ -1693,7 +1679,7 @@ void container_raise_floating(struct sway_container *con) {
 		// it's okay to just raise the scene directly instead of waiting
 		// for the transaction to go through. We won't be reconfiguring
 		// surfaces
-		wlr_scene_node_raise_to_top(&floater->scene_tree->node);
+		sway_scene_node_raise_to_top(&floater->scene_tree->node);
 
 		list_move_to_end(floater->pending.workspace->floating, floater);
 		node_set_dirty(&floater->pending.workspace->node);
@@ -1720,12 +1706,10 @@ bool container_is_sticky_or_child(struct sway_container *con) {
 static bool is_parallel(enum sway_container_layout first,
 		enum sway_container_layout second) {
 	switch (first) {
-	case L_TABBED:
 	case L_HORIZ:
-		return second == L_TABBED || second == L_HORIZ;
-	case L_STACKED:
+		return second == L_HORIZ;
 	case L_VERT:
-		return second == L_STACKED || second == L_VERT;
+		return second == L_VERT;
 	default:
 		return false;
 	}
@@ -1833,20 +1817,7 @@ static void swap_focus(struct sway_container *con1,
 	if (focus == con1 || focus == con2) {
 		struct sway_workspace *ws1 = con1->pending.workspace;
 		struct sway_workspace *ws2 = con2->pending.workspace;
-		enum sway_container_layout layout1 = container_parent_layout(con1);
-		enum sway_container_layout layout2 = container_parent_layout(con2);
-		if (focus == con1 && (layout2 == L_TABBED || layout2 == L_STACKED)) {
-			if (workspace_is_visible(ws2)) {
-				seat_set_focus(seat, &con2->node);
-			}
-			seat_set_focus_container(seat, ws1 != ws2 ? con2 : con1);
-		} else if (focus == con2 && (layout1 == L_TABBED
-					|| layout1 == L_STACKED)) {
-			if (workspace_is_visible(ws1)) {
-				seat_set_focus(seat, &con1->node);
-			}
-			seat_set_focus_container(seat, ws1 != ws2 ? con1 : con2);
-		} else if (ws1 != ws2) {
+		if (ws1 != ws2) {
 			seat_set_focus_container(seat, focus == con1 ? con2 : con1);
 		} else {
 			seat_set_focus_container(seat, focus);

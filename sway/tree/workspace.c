@@ -77,15 +77,13 @@ struct sway_workspace *workspace_create(struct sway_output *output,
 	ws->layers.fullscreen = alloc_scene_tree(root->staging, &failed);
 
 	if (failed) {
-		wlr_scene_node_destroy(&ws->layers.tiling->node);
-		wlr_scene_node_destroy(&ws->layers.fullscreen->node);
+		sway_scene_node_destroy(&ws->layers.tiling->node);
+		sway_scene_node_destroy(&ws->layers.fullscreen->node);
 		free(ws);
 		return NULL;
 	}
 
 	ws->name = strdup(name);
-	ws->prev_split_layout = L_NONE;
-	ws->layout = output_get_default_layout(output);
 	ws->floating = create_list();
 	ws->tiling = create_list();
 	ws->output_priority = create_list();
@@ -130,6 +128,8 @@ struct sway_workspace *workspace_create(struct sway_output *output,
 	ipc_event_workspace(NULL, ws, "init");
 	wl_signal_emit_mutable(&root->events.new_node, &ws->node);
 
+	layout_init(ws);
+
 	return ws;
 }
 
@@ -145,8 +145,8 @@ void workspace_destroy(struct sway_workspace *workspace) {
 
 	scene_node_disown_children(workspace->layers.tiling);
 	scene_node_disown_children(workspace->layers.fullscreen);
-	wlr_scene_node_destroy(&workspace->layers.tiling->node);
-	wlr_scene_node_destroy(&workspace->layers.fullscreen->node);
+	sway_scene_node_destroy(&workspace->layers.tiling->node);
+	sway_scene_node_destroy(&workspace->layers.fullscreen->node);
 
 	free(workspace->name);
 	free(workspace->representation);
@@ -754,7 +754,7 @@ static void workspace_attach_tiling(struct sway_workspace *ws,
 struct sway_container *workspace_wrap_children(struct sway_workspace *ws) {
 	struct sway_container *fs = ws->fullscreen;
 	struct sway_container *middle = container_create(NULL);
-	middle->pending.layout = ws->layout;
+	middle->pending.layout = layout_modifiers_get_mode(ws);
 	while (ws->tiling->length) {
 		struct sway_container *child = ws->tiling->items[0];
 		container_detach(child);
@@ -772,7 +772,7 @@ void workspace_unwrap_children(struct sway_workspace *ws,
 		return;
 	}
 
-	ws->layout = wrap->pending.layout;
+	layout_modifiers_set_mode(ws, wrap->pending.layout);
 	while (wrap->pending.children->length) {
 		struct sway_container *child = wrap->pending.children->items[0];
 		container_detach(child);
@@ -881,10 +881,11 @@ void workspace_add_gaps(struct sway_workspace *ws) {
 	}
 
 	// Add inner gaps and make sure we don't turn out negative
-	ws->current_gaps.top = fmax(0, ws->current_gaps.top + ws->gaps_inner);
-	ws->current_gaps.right = fmax(0, ws->current_gaps.right + ws->gaps_inner);
-	ws->current_gaps.bottom = fmax(0, ws->current_gaps.bottom + ws->gaps_inner);
-	ws->current_gaps.left = fmax(0, ws->current_gaps.left + ws->gaps_inner);
+	// For scroll, we don't add the inner gaps, they are added in the offset
+	ws->current_gaps.top = fmax(0, ws->current_gaps.top);
+	ws->current_gaps.right = fmax(0, ws->current_gaps.right);
+	ws->current_gaps.bottom = fmax(0, ws->current_gaps.bottom);
+	ws->current_gaps.left = fmax(0, ws->current_gaps.left);
 
 	// Now that we have the total gaps calculated we may need to clamp them in
 	// case they've made the available area too small
@@ -914,14 +915,13 @@ void workspace_add_gaps(struct sway_workspace *ws) {
 struct sway_container *workspace_split(struct sway_workspace *workspace,
 		enum sway_container_layout layout) {
 	if (workspace->tiling->length == 0) {
-		workspace->prev_split_layout = workspace->layout;
-		workspace->layout = layout;
+		layout_modifiers_set_mode(workspace, layout);
 		return NULL;
 	}
 
-	enum sway_container_layout old_layout = workspace->layout;
+	enum sway_container_layout old_layout = layout_modifiers_get_mode(workspace);
 	struct sway_container *middle = workspace_wrap_children(workspace);
-	workspace->layout = layout;
+	layout_modifiers_set_mode(workspace, layout);
 	middle->pending.layout = old_layout;
 
 	struct sway_seat *seat;
@@ -935,13 +935,13 @@ struct sway_container *workspace_split(struct sway_workspace *workspace,
 }
 
 void workspace_update_representation(struct sway_workspace *ws) {
-	size_t len = container_build_representation(ws->layout, ws->tiling, NULL);
+	size_t len = container_build_representation(layout_modifiers_get_mode(ws), ws->tiling, NULL);
 	free(ws->representation);
 	ws->representation = calloc(len + 1, sizeof(char));
 	if (!sway_assert(ws->representation, "Unable to allocate title string")) {
 		return;
 	}
-	container_build_representation(ws->layout, ws->tiling, ws->representation);
+	container_build_representation(layout_modifiers_get_mode(ws), ws->tiling, ws->representation);
 }
 
 void workspace_get_box(struct sway_workspace *workspace, struct wlr_box *box) {
