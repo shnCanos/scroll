@@ -41,8 +41,9 @@ static double get_closest_fraction(double cur, list_t *sizes, int inc) {
  */
 static struct cmd_results *cycle_size_tiled(uint32_t axis, int inc) {
 	struct sway_container *current = config->handler_context.container;
+	struct sway_workspace *workspace = config->handler_context.workspace;
 	// Only allow layout->type axis resizing of a parent container, not individual windows
-	enum sway_container_layout layout = layout_get_type(config->handler_context.workspace);
+	enum sway_container_layout layout = layout_get_type(workspace);
 	bool horizontal = is_horizontal(axis);
 	if ((layout == L_HORIZ && horizontal) || (layout == L_VERT && !horizontal)) {
 		if (current->pending.parent) {
@@ -57,10 +58,16 @@ static struct cmd_results *cycle_size_tiled(uint32_t axis, int inc) {
 
 	struct sway_output *output = config->handler_context.workspace->output;
 	if (horizontal) {
-		if (current->width_fraction <= 0.0) {
-			current->width_fraction = output->scroller_options.default_width;
+		double fraction;
+		if (current->free_size) {
+			fraction = current->pending.width / workspace->width;
+		} else {
+			if (current->width_fraction <= 0.0) {
+				current->width_fraction = output->scroller_options.default_width;
+			}
+			fraction = current->width_fraction;
 		}
-		current->width_fraction = get_closest_fraction(current->width_fraction, layout_get_widths(output), inc);
+		current->width_fraction = get_closest_fraction(fraction, layout_get_widths(output), inc);
 		current->free_size = false;
 		if (layout == L_HORIZ) {
 			// If it has children, propagate its width_fraction, overwriting whatever they had
@@ -71,10 +78,16 @@ static struct cmd_results *cycle_size_tiled(uint32_t axis, int inc) {
 			}
 		}
 	} else {
-		if (current->height_fraction <= 0.0) {
-			current->height_fraction = output->scroller_options.default_height;
+		double fraction;
+		if (current->free_size) {
+			fraction = current->pending.height / workspace->height;
+		} else {
+			if (current->height_fraction <= 0.0) {
+				current->height_fraction = output->scroller_options.default_height;
+			}
+			fraction = current->height_fraction;
 		}
-		current->height_fraction = get_closest_fraction(current->height_fraction, layout_get_heights(output), inc);
+		current->height_fraction = get_closest_fraction(fraction, layout_get_heights(output), inc);
 		current->free_size = false;
 		if (layout == L_VERT) {
 			// If it has children, propagate its width_fraction, overwriting whatever they had

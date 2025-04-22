@@ -28,9 +28,9 @@ static void get_visible_from_active(enum sway_container_layout layout,
 			struct sway_container *con = children->items[i];
 			double x0 = offset;
 			double x1 = offset + scale * con->pending.width;
-			if ((x0 >= 0 && x0 < workspace->width) ||
-				(x1 >= 0 && x1 < workspace->width) ||
-				(x0 < 0 && x1 >= workspace->width)) {
+			if ((x0 >= workspace->x && x0 < workspace->x + workspace->width) ||
+				(x1 >= workspace->x && x1 < workspace->x + workspace->width) ||
+				(x0 < workspace->x && x1 >= workspace->x + workspace->width)) {
 				if (from && i < *from) {
 					*from = i;
 				}
@@ -46,9 +46,9 @@ static void get_visible_from_active(enum sway_container_layout layout,
 			struct sway_container *con = children->items[i];
 			double y0 = offset;
 			double y1 = offset + scale * con->pending.height;
-			if ((y0 >= 0 && y0 < workspace->height) ||
-				(y1 >= 0 && y1 < workspace->height) ||
-				(y0 < 0 && y1 >= workspace->height)) {
+			if ((y0 >= workspace->y && y0 < workspace->y + workspace->height) ||
+				(y1 >= workspace->y && y1 < workspace->y + workspace->height) ||
+				(y0 < workspace->y && y1 >= workspace->y + workspace->height)) {
 				if (from && i < *from) {
 					*from = i;
 				}
@@ -71,9 +71,9 @@ static void get_visible_to_active(enum sway_container_layout layout,
 			struct sway_container *con = children->items[i];
 			double x1 = offset;
 			double x0 = offset - scale * con->pending.width;
-			if ((x0 >= 0 && x0 < workspace->width) ||
-				(x1 >= 0 && x1 < workspace->width) ||
-				(x0 < 0 && x1 >= workspace->width)) {
+			if ((x0 >= workspace->x && x0 < workspace->x + workspace->width) ||
+				(x1 >= workspace->x && x1 < workspace->x + workspace->width) ||
+				(x0 < workspace->x && x1 >= workspace->x + workspace->width)) {
 				if (from && i < *from) {
 					*from = i;
 				}
@@ -89,9 +89,9 @@ static void get_visible_to_active(enum sway_container_layout layout,
 			struct sway_container *con = children->items[i];
 			double y1 = offset;
 			double y0 = offset - scale * con->pending.height;
-			if ((y0 >= 0 && y0 < workspace->height) ||
-				(y1 >= 0 && y1 < workspace->height) ||
-				(y0 < 0 && y1 >= workspace->height)) {
+			if ((y0 >= workspace->y && y0 < workspace->y + workspace->height) ||
+				(y1 >= workspace->y && y1 < workspace->y + workspace->height) ||
+				(y0 < workspace->y && y1 >= workspace->y + workspace->height)) {
 				if (from && i < *from) {
 					*from = i;
 				}
@@ -114,9 +114,10 @@ static void get_visible(enum sway_container_layout layout, list_t *children, int
 
 // Set from position. It needs to be set by setting active so from
 // is at the edge. And positions are scaled.
-void set_from_position(enum sway_container_layout layout, list_t *children, float scale, int from, int active_idx, int gap) {
-	double offset = scale * gap;
+void set_from_position(struct sway_workspace *workspace, enum sway_container_layout layout,
+		list_t *children, float scale, int from, int active_idx, int gap) {
 	if (layout == L_HORIZ) {
+		double offset = workspace->x + scale * gap;
 		if (from <= active_idx) {
 			for (int i = from; i <= active_idx; ++i) {
 				struct sway_container *con = children->items[i];
@@ -131,6 +132,7 @@ void set_from_position(enum sway_container_layout layout, list_t *children, floa
 			}
 		}
 	} else {
+		double offset = workspace->y + scale * gap;
 		if (from <= active_idx) {
 			for (int i = from; i <= active_idx; ++i) {
 				struct sway_container *con = children->items[i];
@@ -225,7 +227,7 @@ static void fit_size_workspace(struct sway_workspace *workspace, enum sway_layou
 			}
 		}
 	}
-	set_from_position(layout, workspace->tiling, scale, from, active_idx, workspace->gaps_inner);
+	set_from_position(workspace, layout, workspace->tiling, scale, from, active_idx, workspace->gaps_inner);
 	
 	arrange_workspace(workspace);
 }
@@ -310,7 +312,7 @@ static void fit_size_container(struct sway_container *container, enum sway_layou
 			}
 		}
 	}
-	set_from_position(layout, children, scale, from, active_idx, workspace->gaps_inner);
+	set_from_position(workspace, layout, children, scale, from, active_idx, workspace->gaps_inner);
 	
 	arrange_container(container);
 }

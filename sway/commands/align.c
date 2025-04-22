@@ -101,63 +101,64 @@ struct cmd_results *cmd_align(int argc, char **argv) {
 	struct sway_container *parent = container->pending.parent ? container->pending.parent : container;
 	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
 	layout_modifiers_set_reorder(workspace, REORDER_LAZY);
+	int gap = workspace->gaps_inner;
 
 	switch (direction) {
 	case DIR_LEFT: {
 		if (layout == L_HORIZ) {
-			set_parent_x(parent, 0.0);
+			set_parent_x(parent, workspace->x + scale * gap);
 		} else {
-			set_container_x(container, 0.0);
+			set_container_x(container, workspace->x + scale * gap);
 		}
 		break;
 	}
 	case DIR_RIGHT: {
 		if (layout == L_HORIZ) {
-			set_parent_x(parent, workspace->width - scale * parent->pending.width);
+			set_parent_x(parent, workspace->x + workspace->width - scale * (parent->pending.width + gap));
 		} else {
-			set_container_x(container, workspace->width - scale * container->pending.width);
+			set_container_x(container, workspace->x + workspace->width - scale * (container->pending.width + gap));
 		}
 		break;
 	}
 	case DIR_CENTER: {
 		if (layout == L_HORIZ) {
 			if (mode == L_HORIZ) {
-				set_parent_x(parent, 0.5 * (workspace->width - scale * parent->pending.width));
+				set_parent_x(parent, workspace->x + 0.5 * (workspace->width - scale * parent->pending.width));
 			} else {
-				set_container_y(container, 0.5 * (workspace->height - scale * container->pending.height));
+				set_container_y(container, workspace->x + 0.5 * (workspace->height - scale * container->pending.height));
 			}
 		} else {
 			if (mode == L_VERT) {
-				set_parent_y(parent, 0.5 * (workspace->height - scale * parent->pending.height));
+				set_parent_y(parent, workspace->y + 0.5 * (workspace->height - scale * parent->pending.height));
 			} else {
-				set_container_x(container, 0.5 * (workspace->width - scale * container->pending.width));
+				set_container_x(container, workspace->y + 0.5 * (workspace->width - scale * container->pending.width));
 			}
 		}
 		break;
 	}
 	case DIR_UP: {
 		if (layout == L_HORIZ) {
-			set_container_y(container, 0.0);
+			set_container_y(container, workspace->y + scale * gap);
 		} else {
-			set_parent_y(parent, 0.0);
+			set_parent_y(parent, workspace->y + scale * gap);
 		}
 		break;
 	}
 	case DIR_DOWN: {
 		if (layout == L_HORIZ) {
-			set_container_y(container, workspace->height - scale * container->pending.height);
+			set_container_y(container, workspace->y + workspace->height - scale * (container->pending.height + gap));
 		} else {
-			set_parent_y(parent, workspace->height - scale * parent->pending.height);
+			set_parent_y(parent, workspace->y + workspace->height - scale * (parent->pending.height + gap));
 		}
 		break;
 	}
 	case DIR_MIDDLE: {
 		if (layout == L_HORIZ) {
-			set_parent_x(parent, 0.5 * (workspace->width - scale * parent->pending.width));
-			set_container_y(container, 0.5 * (workspace->height - scale * container->pending.height));
+			set_parent_x(parent, workspace->x + 0.5 * (workspace->width - scale * parent->pending.width));
+			set_container_y(container, workspace->y + 0.5 * (workspace->height - scale * container->pending.height));
 		} else {
-			set_parent_y(parent, 0.5 * (workspace->height - scale * parent->pending.height));
-			set_container_x(container, 0.5 * (workspace->width - scale * container->pending.width));
+			set_parent_y(parent, workspace->y + 0.5 * (workspace->height - scale * parent->pending.height));
+			set_container_x(container, workspace->x + 0.5 * (workspace->width - scale * container->pending.width));
 		}
 		break;
 	}
