@@ -4,7 +4,8 @@
 [sway](https://github.com/swaywm/sway). It creates a window layout similar to
 [PaperWM](https://github.com/paperwm/PaperWM).
 
-Consult the [README](README.md) for more details beyond this quick tutorial.
+Consult the [README](https://github.com/dawsers/scroll/blob/master/README.md)
+for more details beyond this quick tutorial.
 
 ## Rows and Columns
 
@@ -126,5 +127,5 @@ gestures to scroll windows, call *overview* and switch workspaces.
 
 ## Example Configuration
 
-*scroll* includes an example [configuration](https://github.com/dawsers/scroll/config.in)
+*scroll* includes an example [configuration](https://github.com/dawsers/scroll/blob/master/config.in)
 with most of the key bindings recommended for a basic setup.

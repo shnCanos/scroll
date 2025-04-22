@@ -38,9 +38,9 @@ documentation, as compatibility is very high.
 
 [Documentation for sway](https://github.com/swaywm/sway/wiki)
 
-[scroll TUTORIAL](https://github.com/dawsers/scroll/TUTORIAL.md)
+[scroll TUTORIAL](https://github.com/dawsers/scroll/blob/master/TUTORIAL.md)
 
-[Example configuration](https://github.com/dawsers/scroll/config.in)
+[Example configuration](https://github.com/dawsers/scroll/blob/master/config.in)
 
 ## Building and Installing
 
