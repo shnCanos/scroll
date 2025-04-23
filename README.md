@@ -51,8 +51,8 @@ There are still no packages or releases for *scroll*. But you can build and then
 start it from a tty.
 
 *scroll* is a stable fork of *sway*; the build tree is basically the
-same except for the main executable, called *scroll*. *swaymsg*, *swaynag*
-etc. keep their names.
+same and the executables are renamed to *scroll*, "scrollmsg", "scrollnag" and
+"scrollbar".
 
 ### Requirements
 
@@ -65,8 +65,8 @@ apply to *scroll*.
 *scroll* is very compatible with *i3* and *sway*, but because it uses a
 scrolling layout, to use its extra features you will need to spend some time
 configuring key bindings and options. *scroll* includes an example configuration
-file that will usually be installed in `/etc/sway/config`. Copy it to
-`~/.config/sway/config` and make your changes.
+file that will usually be installed in `/etc/scroll/config`. Copy it to
+`~/.config/scroll/config` and make your changes.
 
 
 ## Commands and Quirks Specific to *scroll*
@@ -333,18 +333,18 @@ key bindings:
 
 ``` config
     # Marks
-    bindsym $mod+m exec sway-mark-toggle.sh
-    bindsym $mod+Shift+m exec sway-mark-remove.sh
-    bindsym $mod+apostrophe exec sway-mark-switch.sh
+    bindsym $mod+m exec scroll-mark-toggle.sh
+    bindsym $mod+Shift+m exec scroll-mark-remove.sh
+    bindsym $mod+apostrophe exec scroll-mark-switch.sh
 ```
 
-`sway-mark-toggle.sh`
+`scroll-mark-toggle.sh`
 
 
 ``` bash
 #!/bin/bash
     
-marks=($(swaymsg -t get_tree | jq -c 'recurse(.nodes[]?) | recurse(.floating_nodes[]?) | select(.focused==true) | {marks} | .[]' | jq -r '.[]'))
+marks=($(scrollmsg -t get_tree | jq -c 'recurse(.nodes[]?) | recurse(.floating_nodes[]?) | select(.focused==true) | {marks} | .[]' | jq -r '.[]'))
 
 generate_marks() {
     for mark in "${marks[@]}"; do
@@ -356,15 +356,15 @@ mark=$( (generate_marks) | rofi -p "Toggle a mark" -dmenu)
 if [[ -z $mark ]]; then
     exit
 fi
-swaymsg "mark --add --toggle" "$mark"
+scrollmsg "mark --add --toggle" "$mark"
 ```
 
-`sway-mark-remove.sh`
+`scroll-mark-remove.sh`
 
 ``` bash
 #!/bin/bash
     
-marks=($(swaymsg -t get_tree | jq -c 'recurse(.nodes[]?) | recurse(.floating_nodes[]?) | select(.focused==true) | {marks} | .[]' | jq -r '.[]'))
+marks=($(scrollmsg -t get_tree | jq -c 'recurse(.nodes[]?) | recurse(.floating_nodes[]?) | select(.focused==true) | {marks} | .[]' | jq -r '.[]'))
 
 generate_marks() {
     for mark in "${marks[@]}"; do
@@ -375,7 +375,7 @@ generate_marks() {
 remove_marks() {
     echo $marks
     for mark in "${marks[@]}"; do
-        swaymsg unmark "$mark"
+        scrollmsg unmark "$mark"
     done
 }
 
@@ -384,15 +384,15 @@ if [[ -z $mark ]]; then
     remove_marks
     exit
 fi
-swaymsg unmark "$mark"
+scrollmsg unmark "$mark"
 ```
 
-`sway-mark-switch.sh`
+`scroll-mark-switch.sh`
 
 ``` bash
 #!/bin/bash
 
-marks=($(swaymsg -t get_marks | jq -r '.[]'))
+marks=($(scrollmsg -t get_marks | jq -r '.[]'))
 
 generate_marks() {
     for mark in "${marks[@]}"; do
@@ -403,7 +403,7 @@ generate_marks() {
 mark=$( (generate_marks) | rofi -p "Switch to mark" -dmenu)
 [[ -z $mark ]] && exit
 
-swaymsg "[con_mark=\b$mark\b]" focus
+scrollmsg "[con_mark=\b$mark\b]" focus
 ```
 
 

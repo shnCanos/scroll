@@ -209,9 +209,9 @@ fullscreen_movefocus true
     bindsym $mod+a sticky toggle
 
     # Marks
-    # bindsym $mod+m exec sway-mark-toggle.sh
-    # bindsym $mod+Shift+m exec sway-mark-remove.sh
-    # bindsym $mod+apostrophe exec sway-mark-switch.sh
+    # bindsym $mod+m exec scroll-mark-toggle.sh
+    # bindsym $mod+Shift+m exec scroll-mark-remove.sh
+    # bindsym $mod+apostrophe exec scroll-mark-switch.sh
 
 #
 # Scratchpad:
