@@ -14,12 +14,10 @@
 
 static void apply_scale(struct sway_container *container, float scale) {
 	view_set_content_scale(container->view, scale);
-	arrange_container(container);
 }
 
 static void reset_scale(struct sway_container *container) {
 	view_reset_content_scale(container->view);
-	arrange_container(container);
 }
 
 /*

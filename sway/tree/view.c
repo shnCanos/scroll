@@ -1215,6 +1215,7 @@ void view_send_frame_done(struct sway_view *view) {
 
 void view_set_content_scale(struct sway_view *view, float scale) {
 	view->content_scale = scale;
+	arrange_container(view->container);
 	transaction_commit_dirty();
 }
 
@@ -1225,6 +1226,7 @@ float view_get_content_scale(struct sway_view *view) {
 void view_reset_content_scale(struct sway_view *view) {
 	if (view->content_scale > 0.0f) {
 		view->content_scale = -1.0f;
+		arrange_container(view->container);
 		transaction_commit_dirty();
 	}
 }
