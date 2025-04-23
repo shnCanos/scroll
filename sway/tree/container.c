@@ -1079,11 +1079,11 @@ void container_set_geometry_from_content(struct sway_container *con) {
 		top = con->pending.border == B_NORMAL ?
 			container_titlebar_height() : border_width;
 	}
-
+	float scale = view_is_content_scaled(con->view) ? view_get_content_scale(con->view) : 1.0f;
 	con->pending.x = con->pending.content_x - border_width;
 	con->pending.y = con->pending.content_y - top;
-	con->pending.width = con->pending.content_width + border_width * 2;
-	con->pending.height = top + con->pending.content_height + border_width;
+	con->pending.width = scale * con->pending.content_width + border_width * 2;
+	con->pending.height = top + scale * con->pending.content_height + border_width;
 	node_set_dirty(&con->node);
 }
 
