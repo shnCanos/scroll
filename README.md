@@ -47,12 +47,29 @@ documentation, as compatibility is very high.
 
 ## Building and Installing
 
-There are still no packages or releases for *scroll*. But you can build and then
-start it from a tty.
-
 *scroll* is a stable fork of *sway*; the build tree is basically the
 same and the executables are renamed to *scroll*, "scrollmsg", "scrollnag" and
 "scrollbar".
+
+### Arch Linux
+
+If you are using Arch Linux, there is a PKGBUILD included in the repository.
+To install *scroll*, follow these steps:
+
+``` sh
+cd /tmp
+git clone https://github.com/dawsers/scroll.git
+cd scroll/aur/sway-scroll.git
+makepkg
+# makepkg will create a package in the current directory, for example
+# sway-scroll-git-.rxxxxx.pkg.tar.zst
+# Install it
+sudo pacman -U sway-scroll-git-.rxxxxx.pkg.tar.zst
+```
+
+Now prepare a configuration file `~/.config/scroll/config` using the provided
+example (`/etc/scroll/config`), and you can start *scroll* from a tty.
+
 
 ### Requirements
 
