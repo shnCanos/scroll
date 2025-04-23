@@ -1,5 +1,5 @@
 executable(
-	'swaymsg',
+	'scrollmsg',
 	'main.c',
 	include_directories: [sway_inc],
 	dependencies: [jsonc],

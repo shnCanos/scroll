@@ -118,20 +118,20 @@ if scdoc.found()
 	scdoc_prog = find_program(scdoc.get_variable(pkgconfig: 'scdoc'), native: true)
 	mandir = get_option('mandir')
 	man_files = [
-		'sway/sway.1.scd',
-		'sway/sway.5.scd',
-		'sway/sway-bar.5.scd',
-		'sway/sway-input.5.scd',
-		'sway/sway-ipc.7.scd',
-		'sway/sway-output.5.scd',
-		'swaybar/swaybar-protocol.7.scd',
-		'swaymsg/swaymsg.1.scd',
+		'sway/scroll.1.scd',
+		'sway/scroll.5.scd',
+		'sway/scroll-bar.5.scd',
+		'sway/scroll-input.5.scd',
+		'sway/scroll-ipc.7.scd',
+		'sway/scroll-output.5.scd',
+		'swaybar/scrollbar-protocol.7.scd',
+		'swaymsg/scrollmsg.1.scd',
 	]
 
-	if get_option('swaynag')
+	if get_option('scrollnag')
 		man_files += [
-			'swaynag/swaynag.1.scd',
-			'swaynag/swaynag.5.scd',
+			'swaynag/scrollnag.1.scd',
+			'swaynag/scrollnag.5.scd',
 		]
 	endif
 
@@ -195,13 +195,13 @@ subdir('common')
 subdir('sway')
 subdir('swaymsg')
 
-if get_option('swaybar') or get_option('swaynag')
+if get_option('scrollbar') or get_option('scrollnag')
 	subdir('client')
 endif
-if get_option('swaybar')
+if get_option('scrollbar')
 	subdir('swaybar')
 endif
-if get_option('swaynag')
+if get_option('scrollnag')
 	subdir('swaynag')
 endif
 
@@ -214,7 +214,7 @@ configure_file(
 	configuration: config,
 	input: 'config.in',
 	output: '@BASENAME@',
-	install_dir: join_paths(sysconfdir, 'sway')
+	install_dir: join_paths(sysconfdir, 'scroll')
 )
 
 install_data(
@@ -233,7 +233,7 @@ if get_option('default-wallpaper')
 		'assets/Sway_Wallpaper_Blue_2048x1536.png',
 		'assets/Sway_Wallpaper_Blue_2048x1536_Portrait.png',
 	)
-	wallpaper_install_dir = join_paths(datadir, 'backgrounds', 'sway')
+	wallpaper_install_dir = join_paths(datadir, 'backgrounds', 'scroll')
 
 	install_data(wallpaper_files, install_dir: wallpaper_install_dir)
 endif

@@ -1,9 +1,9 @@
-#compdef swaybar
+#compdef scrollbar
 #
-# Completion script for swaybar
+# Completion script for scrollbar
 #
 
-local bars=($(swaymsg -t get_bar_config | jq -r '.[]'))
+local bars=($(scrollmsg -t get_bar_config | jq -r '.[]'))
 
 _arguments -s \
 	'(-h --help)'{-h,--help}'[Show help message and quit]' \

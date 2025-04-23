@@ -30,16 +30,16 @@ packages:
 - x11-servers/xwayland
 - misc/hwdata
 sources:
-- https://github.com/swaywm/sway
+- https://github.com/dawsers/scroll
 - https://gitlab.freedesktop.org/wlroots/wlroots.git
 tasks:
 - setup: |
-    cd sway
+    cd scroll
     mkdir subprojects
     cd subprojects
     ln -s ../../wlroots wlroots
     cd ..
     meson build --fatal-meson-warnings -Dtray=enabled -Dsd-bus-provider=basu
 - build: |
-    cd sway
+    cd scroll
     ninja -C build

@@ -1,9 +1,9 @@
-#compdef sway
+#compdef scroll
 #------------
 # Description
 # -----------
 #
-# Completion script for the sway window manager (http://swaywm.org)
+# Completion script for the scroll window manager (https://github.com/dawsers/scroll)
 #
 # ---------------------------------------------
 # Author

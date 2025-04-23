@@ -1,6 +1,6 @@
-# swaybar(1) completion
+# scrollbar(1) completion
 
-_swaybar()
+_scrollbar()
 {
   local cur prev short long
   _get_comp_words_by_ref cur prev
@@ -41,4 +41,4 @@ _swaybar()
   fi
 
 } &&
-complete -F _swaybar swaybar
+complete -F _scrollbar scrollbar

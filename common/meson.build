@@ -1,5 +1,5 @@
 lib_sway_common = static_library(
-	'sway-common',
+	'scroll-common',
 	files(
 		'cairo.c',
 		'gesture.c',

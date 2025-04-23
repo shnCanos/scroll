@@ -21,7 +21,7 @@ packages:
   - seatd
   - hwdata
 sources:
-  - https://github.com/swaywm/sway
+  - https://github.com/dawsers/scroll
   - https://gitlab.freedesktop.org/wlroots/wlroots.git
 tasks:
   - wlroots: |
@@ -30,8 +30,8 @@ tasks:
       ninja -C build
       sudo ninja -C build install
   - setup: |
-      cd sway
+      cd scroll
       meson build --fatal-meson-warnings -Dauto_features=enabled -Dsd-bus-provider=libsystemd
   - build: |
-      cd sway
+      cd scroll
       ninja -C build

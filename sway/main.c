@@ -59,7 +59,7 @@ static void log_env(void) {
 		"LD_LIBRARY_PATH",
 		"LD_PRELOAD",
 		"PATH",
-		"SWAYSOCK",
+		"SCROLLSOCK",
 	};
 	for (size_t i = 0; i < sizeof(log_vars) / sizeof(char *); ++i) {
 		char *value = getenv(log_vars[i]);
@@ -276,8 +276,8 @@ int main(int argc, char **argv) {
 			verbose = true;
 			break;
 		case 'p': // --get-socketpath
-			if (getenv("SWAYSOCK")) {
-				printf("%s\n", getenv("SWAYSOCK"));
+			if (getenv("SCROLLSOCK")) {
+				printf("%s\n", getenv("SCROLLSOCK"));
 				exit(EXIT_SUCCESS);
 			} else {
 				fprintf(stderr, "sway socket not detected.\n");
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
 					"`sway -d 2>sway.log`.");
 			exit(EXIT_FAILURE);
 		}
-		char *socket_path = getenv("SWAYSOCK");
+		char *socket_path = getenv("SCROLLSOCK");
 		if (!socket_path) {
 			sway_log(SWAY_ERROR, "Unable to retrieve socket path");
 			exit(EXIT_FAILURE);

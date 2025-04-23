@@ -24,7 +24,7 @@ packages:
   - xwayland-dev
   - hwdata-dev
 sources:
-  - https://github.com/swaywm/sway
+  - https://github.com/dawsers/scroll
   - https://gitlab.freedesktop.org/wlroots/wlroots.git
 tasks:
   - wlroots: |
@@ -33,10 +33,10 @@ tasks:
       ninja -C build
       sudo ninja -C build install
   - setup: |
-      cd sway
+      cd scroll
       meson build --fatal-meson-warnings -Dauto_features=enabled -Dtray=disabled
   - build: |
-      cd sway
+      cd scroll
       ninja -C build
   - build-no-xwayland: |
       cd wlroots
@@ -44,11 +44,11 @@ tasks:
       ninja -C build
       sudo ninja -C build install
 
-      cd ../sway
+      cd ../scroll
       meson configure build --clearcache
       ninja -C build
   - build-static: |
-      cd sway
+      cd scroll
       mkdir subprojects
       ln -s ../../wlroots subprojects/wlroots
       rm -rf build

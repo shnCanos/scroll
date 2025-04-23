@@ -21,12 +21,12 @@ if ! git diff-index --quiet HEAD -- meson.build; then
 fi
 
 shortlog="$(git shortlog --no-merges "$prev..")"
-(echo "sway $next"; echo ""; echo "$shortlog") | git tag "$next" -ase -F -
+(echo "scroll $next"; echo ""; echo "$shortlog") | git tag "$next" -ase -F -
 
-prefix=sway-$next
+prefix=scroll-$next
 archive=$prefix.tar.gz
 git archive --prefix="$prefix/" -o "$archive" "$next"
 gpg --output "$archive".sig --detach-sig "$archive"
 
 git push --follow-tags
-gh release create "sway $next" -t "$next" -n "" -d "$archive" "$archive.sig"
+gh release create "scroll $next" -t "$next" -n "" -d "$archive" "$archive.sig"

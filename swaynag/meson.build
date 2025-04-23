@@ -1,5 +1,5 @@
 executable(
-	'swaynag', [
+	'scrollnag', [
 		'config.c',
 		'main.c',
 		'render.c',

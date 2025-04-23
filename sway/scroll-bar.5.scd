@@ -1,12 +1,12 @@
-sway-bar(5)
+scroll-bar(5)
 
 # NAME
 
-sway-bar - bar configuration file and commands
+scroll-bar - bar configuration file and commands
 
 # DESCRIPTION
 
-Sway allows configuring swaybar in the sway configuration file.
+Scroll allows configuring scrollbar in the scroll configuration file.
 
 # COMMANDS
 
@@ -15,8 +15,8 @@ The following commands may only be used in the configuration file.
 *id* <bar_id>
 	Sets the ID of the bar.
 
-*swaybar_command* <command>
-	Executes custom bar command. Default is _swaybar_.
+*scrollbar_command* <command>
+	Executes custom bar command. Default is _scrollbar_.
 
 The following commands may be used either in the configuration file or at
 runtime.
@@ -60,7 +60,7 @@ runtime.
 	currently visible workspace. Default is _hide_.
 
 	For compatibility with i3, _bar hidden_state hide|show [<bar-id>]_ is
-	supported along with the sway only _bar <bar-id> hidden_state hide|show_
+	supported along with the scroll only _bar <bar-id> hidden_state hide|show_
 	syntax. When using the i3 syntax, if _bar-id_ is omitted, the hidden_state
 	will be changed for all bars. Attempting to use _bar <bar-id1>
 	hidden_state hide|show <bar-id2>_ will result in an error due to
@@ -75,7 +75,7 @@ runtime.
 	transparent to input events.) Default is _dock_.
 
 	For compatibility with i3, _bar mode <mode> [<bar-id>]_ syntax is supported
-	along with the sway only _bar <bar-id> mode <mode>_ syntax. When using the
+	along with the scroll only _bar <bar-id> mode <mode>_ syntax. When using the
 	i3 syntax, if _bar-id_ is omitted, the mode will be changed for all bars.
 	Attempting to use _bar <bar-id1> mode <mode> <bar-id2>_ will result in an
 	error due to conflicting bar ids.
@@ -101,11 +101,11 @@ runtime.
 *status_command* <status command>
 	Executes the bar _status command_ with _sh -c_. Each line of text printed
 	to stdout from this command will be displayed in the status area of the
-	bar. You may also use swaybar's JSON status line protocol. See
-	*swaybar-protocol*(7) for more information on the protocol
+	bar. You may also use scrollbar's JSON status line protocol. See
+	*scrollbar-protocol*(7) for more information on the protocol
 
 	If running this command via IPC, you can disable a running status command by
-	setting the command to a single dash: _swaybar bar bar-0 status\_command -_
+	setting the command to a single dash: _scrollbar bar bar-0 status\_command -_
 
 *status_edge_padding* <padding>
 	Sets the padding that is used when the status line is at the right edge of
@@ -151,7 +151,7 @@ The following commands may only be used at runtime.
 
 ## TRAY
 
-Swaybar provides a system tray where third-party applications may place icons.
+Scrollbar provides a system tray where third-party applications may place icons.
 The following commands configure the tray.
 
 *tray_bindcode* <event-code>
@@ -174,13 +174,13 @@ ContextMenu|Activate|SecondaryActivate|ScrollDown|ScrollLeft|ScrollRight|ScrollU
 
 *tray_output* none|<output>|\*
 	Restrict the tray to a certain output, can be specified multiple times. If
-	omitted, the tray will be displayed on all outputs. Unlike i3bar, swaybar
+	omitted, the tray will be displayed on all outputs. Unlike i3bar, scrollbar
 	can show icons on any number of bars and outputs without races. _\*_ can be
 	given at any point to reset it to display on all outputs.
 
 *icon_theme* <name>
-	Sets the icon theme that sway will look for item icons in. This option has
-	no default value, because sway will always default to the fallback theme,
+	Sets the icon theme that scroll will look for item icons in. This option has
+	no default value, because scroll will always default to the fallback theme,
 	hicolor.
 
 ## COLORS
@@ -234,4 +234,4 @@ must be defined in hex: _#RRGGBB_ or _#RRGGBBAA_.
 
 # SEE ALSO
 
-*sway*(5) *swaybar-protocol*(7)
+*scroll*(5) *scrollbar-protocol*(7)

@@ -1,9 +1,9 @@
-#compdef swaymsg
+#compdef scrollmsg
 #-----------------
 # Description
 # -----------
 #
-# Completion script for swaymsg in sway wm (http://swaywm.org)
+# Completion script for scrollmsg in scroll wm (https://github.com/dawsers/scroll)
 #
 # ------------------------------------------------------
 # Author

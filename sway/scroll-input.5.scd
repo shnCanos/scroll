@@ -1,13 +1,13 @@
-sway-input(5)
+scroll-input(5)
 
 # NAME
 
-sway-input - input configuration file and commands
+scroll-input - input configuration file and commands
 
 # DESCRIPTION
 
-Sway allows for configuration of devices within the sway configuration file.
-To obtain a list of available device identifiers, run *swaymsg -t get_inputs*.
+Scroll allows for configuration of devices within the scroll configuration file.
+To obtain a list of available device identifiers, run *scrollmsg -t get_inputs*.
 Settings can also be applied to all input devices by using the wildcard, _\*_,
 in place of _\<identifier\>_ in the commands below. In addition, the settings
 can be applied to a type of device, by using _type:\<input_type\>_ in place
@@ -23,7 +23,7 @@ and _type:\<input_type\>_ settings, if applied later.
 
 Tip: If the configuration settings do not appear to be taking effect, you could
 try using _\*_ instead of _\<identifier\>_. If it works with the wildcard, try
-using a different identifier from *swaymsg -t get_inputs* until you find the
+using a different identifier from *scrollmsg -t get_inputs* until you find the
 correct input device.
 
 Current available input types are:
@@ -81,7 +81,7 @@ For more information on these xkb configuration options, see
 
 	This can be used when multiple layouts are configured with *xkb_layout*.
 	A list of layouts you can switch between can be obtained with
-	*swaymsg -t get_inputs*.
+	*scrollmsg -t get_inputs*.
 
 *input* <identifier> xkb_variant <variant>
 	Sets the variant of the keyboard like _dvorak_ or _colemak_.
@@ -222,7 +222,7 @@ Configure options for multiseat mode.
 
 A *seat* is a collection of input devices that act independently of each other.
 Seats are identified by name and the default seat is _seat0_ if no seats are
-configured. While sway is running, _-_ (hyphen) can be used as an alias for the
+configured. While scroll is running, _-_ (hyphen) can be used as an alias for the
 current seat. Each seat has an independent keyboard focus and a separate cursor
 that is controlled by the pointer devices of the seat. This is useful for
 multiple people using the desktop at the same time with their own devices (each
@@ -231,7 +231,7 @@ place of _\<identifier\>_ to change settings for all seats.
 
 Tip: If the configuration settings do not appear to be taking effect, you could
 try using _\*_ instead of _\<identifier\>_. If it works with the wildcard, try
-using a different identifier from *swaymsg -t get_seats* until you find the
+using a different identifier from *scrollmsg -t get_seats* until you find the
 correct seat.
 
 *seat* <name> attach <input_identifier>
@@ -288,7 +288,7 @@ correct seat.
 	useful for when the keyboard appears as multiple separate input devices.
 	In this mode, the effective layout is synced between the keyboards in the
 	group. The default is _smart_. To restore the behavior of older versions
-	of sway, use _none_.
+	of scroll, use _none_.
 
 *seat* <name> pointer_constraint enable|disable|escape
 	Enables or disables the ability for clients to capture the cursor (enabled
@@ -322,4 +322,4 @@ correct seat.
 
 # SEE ALSO
 
-*sway*(5) *sway-output*(5) *xkeyboard-config*(7)
+*scroll*(5) *scroll-output*(5) *xkeyboard-config*(7)

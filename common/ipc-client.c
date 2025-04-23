@@ -13,13 +13,13 @@ static const char ipc_magic[] = {'i', '3', '-', 'i', 'p', 'c'};
 #define IPC_HEADER_SIZE (sizeof(ipc_magic) + 8)
 
 char *get_socketpath(void) {
-	const char *swaysock = getenv("SWAYSOCK");
-	if (swaysock) {
-		return strdup(swaysock);
+	const char *scrollsock = getenv("SCROLLSOCK");
+	if (scrollsock) {
+		return strdup(scrollsock);
 	}
 	char *line = NULL;
 	size_t line_size = 0;
-	FILE *fp = popen("sway --get-socketpath 2>/dev/null", "r");
+	FILE *fp = popen("scroll --get-socketpath 2>/dev/null", "r");
 	if (fp) {
 		ssize_t nret = getline(&line, &line_size, fp);
 		pclose(fp);
@@ -30,6 +30,10 @@ char *get_socketpath(void) {
 			}
 			return line;
 		}
+	}
+	const char *swaysock = getenv("SWAYSOCK");
+	if (swaysock) {
+		return strdup(swaysock);
 	}
 	const char *i3sock = getenv("I3SOCK");
 	if (i3sock) {

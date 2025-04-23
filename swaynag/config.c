@@ -367,14 +367,14 @@ static bool file_exists(const char *path) {
 
 char *swaynag_get_config_path(void) {
 	static const char *config_paths[] = {
-		"$HOME/.swaynag/config",
-		"$XDG_CONFIG_HOME/swaynag/config",
-		SYSCONFDIR "/swaynag/config",
+		"$HOME/.scrollnag/config",
+		"$XDG_CONFIG_HOME/scrollnag/config",
+		SYSCONFDIR "/scrollnag/config",
 	};
 
 	char *config_home = getenv("XDG_CONFIG_HOME");
 	if (!config_home || config_home[0] == '\0') {
-		config_paths[1] = "$HOME/.config/swaynag/config";
+		config_paths[1] = "$HOME/.config/scrollnag/config";
 	}
 
 	wordexp_t p;

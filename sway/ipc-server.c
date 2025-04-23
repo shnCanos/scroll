@@ -96,8 +96,8 @@ void ipc_init(struct sway_server *server) {
 	ipc_sockaddr = ipc_user_sockaddr();
 
 	// We want to use socket name set by user, not existing socket from another sway instance.
-	if (getenv("SWAYSOCK") != NULL && access(getenv("SWAYSOCK"), F_OK) == -1) {
-		strncpy(ipc_sockaddr->sun_path, getenv("SWAYSOCK"), sizeof(ipc_sockaddr->sun_path) - 1);
+	if (getenv("SCROLLSOCK") != NULL && access(getenv("SCROLLSOCK"), F_OK) == -1) {
+		strncpy(ipc_sockaddr->sun_path, getenv("SCROLLSOCK"), sizeof(ipc_sockaddr->sun_path) - 1);
 		ipc_sockaddr->sun_path[sizeof(ipc_sockaddr->sun_path) - 1] = 0;
 	}
 
@@ -110,9 +110,10 @@ void ipc_init(struct sway_server *server) {
 		sway_abort("Unable to listen on IPC socket");
 	}
 
-	// Set i3 IPC socket path so that i3-msg works out of the box
+	// Set i3 and sway IPC socket path so that i3-msg works out of the box
 	setenv("I3SOCK", ipc_sockaddr->sun_path, 1);
 	setenv("SWAYSOCK", ipc_sockaddr->sun_path, 1);
+	setenv("SCROLLSOCK", ipc_sockaddr->sun_path, 1);
 
 	ipc_client_list = create_list();
 

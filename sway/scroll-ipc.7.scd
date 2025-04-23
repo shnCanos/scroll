@@ -1,18 +1,18 @@
-sway-ipc(7)
+sscroll-ipc(7)
 
 # NAME
 
-sway-ipc - IPC protocol for sway
+sscroll-ipc - IPC protocol for scroll
 
 # DESCRIPTION
 
-This details the interprocess communication (IPC) protocol for *sway*(1). This
-IPC protocol can be used to control or obtain information from a sway process.
+This details the interprocess communication (IPC) protocol for *scroll*(1). This
+IPC protocol can be used to control or obtain information from a scroll process.
 
 The IPC protocol uses a UNIX socket as the method of communication. The path
-to the socket is stored in the environment variable _SWAYSOCK_ and, for
-backwards compatibility with i3, _I3SOCK_. You can also retrieve the socket
-path by calling _sway --get-socketpath_.
+to the socket is stored in the environment variable _SCROLLSOCK_ and, for
+backwards compatibility with i3 and sway, _I3SOCK_ and _SWAYSOCK_.
+You can also retrieve the socket path by calling _scroll --get-socketpath_.
 
 # MESSAGE AND REPLY FORMAT
 
@@ -41,7 +41,7 @@ supported. *For all replies, any properties not listed are subject to removal.*
 :- *PURPOSE*
 |- 0
 :  RUN_COMMAND
-:[ Runs the payload as sway commands
+:[ Runs the payload as scroll commands
 |- 1
 :  GET_WORKSPACES
 :  Get the list of current workspaces
@@ -62,7 +62,7 @@ supported. *For all replies, any properties not listed are subject to removal.*
 :  Get the specified bar config or a list of bar config names
 |- 7
 :  GET_VERSION
-:  Get the version of sway that owns the IPC socket
+:  Get the version of scroll that owns the IPC socket
 |- 8
 :  GET_BINDING_MODES
 :  Get the list of binding mode names
@@ -84,11 +84,14 @@ supported. *For all replies, any properties not listed are subject to removal.*
 |- 101
 :  GET_SEATS
 :  Get the list of seats
+|- 120
+:  GET_SCROLLER
+:  Get the list of scroller properties
 
 ## 0. RUN_COMMAND
 
 *MESSAGE*++
-Parses and runs the payload as sway commands
+Parses and runs the payload as scroll commands
 
 *REPLY*++
 An array of objects corresponding to each command that was parsed. Each object
@@ -826,13 +829,13 @@ An array of bar IDs, which are strings
 
 *MESSAGE*++
 When sent with a bar ID as the payload, this retrieves the config associated
-with the specified by the bar ID in the payload. This is used by swaybar, but
+with the specified by the bar ID in the payload. This is used by scrollbar, but
 could also be used for third party bars
 
 *REPLY*++
 An object that represents the configuration for the bar with the bar ID sent as
 the payload. The following properties exists and more information about what
-their value mean can be found in *sway-bar*(5):
+their value mean can be found in *scroll-bar*(5):
 
 [- *PROPERTY*
 :- *DATA TYPE*
@@ -993,7 +996,7 @@ containing the _#RRGGBBAA_ representation of the color:
 ## 7. GET_VERSION
 
 *MESSAGE*++
-Retrieve version information about the sway process
+Retrieve version information about the scroll process
 
 *REPLY*++
 An object containing the following properties:
@@ -1003,13 +1006,13 @@ An object containing the following properties:
 :- *DESCRIPTION*
 |- major
 :  integer
-:[ The major version of the sway process
+:[ The major version of the scroll process
 |- minor
 :  integer
-:  The minor version of the sway process
+:  The minor version of the scroll process
 |- patch
 :  integer
-:  The patch version of the sway process
+:  The patch version of the scroll process
 |- human_readable
 :  string
 :  A human readable version string that will likely contain more useful
@@ -1026,7 +1029,7 @@ An object containing the following properties:
 	"major": 1,
 	"minor": 0,
 	"patch": 0,
-	"loaded_config_file_name": "/home/redsoxfan/.config/sway/config"
+	"loaded_config_file_name": "/home/redsoxfan/.config/scroll/config"
 }
 ```
 
@@ -1085,7 +1088,7 @@ indicating whether the _TICK_ event was sent.
 
 *MESSAGE*++
 For i3 compatibility, this command will just return a failure object since it
-does not make sense to implement in sway due to the X11 nature of the command.
+does not make sense to implement in scroll due to the X11 nature of the command.
 If you are curious about what this IPC command does in i3, refer to the i3
 documentation.
 
@@ -1166,7 +1169,7 @@ The _libinput_ object describes the device configuration for libinput devices.
 Only properties that are supported for the device will be added to the object.
 In addition to the possible options listed, all string properties may also be
 _unknown_, in the case that a new option is added to libinput. See
-*sway-input*(5) for information on the meaning of the possible values. The
+*scroll-input*(5) for information on the meaning of the possible values. The
 following properties will be included for devices that support them:
 
 [- *PROPERTY*
@@ -1458,9 +1461,16 @@ one seat. Each object has the following properties:
 ]
 ```
 
+## 120. GET_SCROLLER
+
+*MESSAGE*++
+Retrieve the scroller properties of the current workspace
+
+TODO: Add documentation.
+
 # EVENTS
 
-Events are a way for client to get notified of changes to sway. A client can
+Events are a way for client to get notified of changes to scroll. A client can
 subscribe to any events it wants to be notified of changes for. The event is
 sent in the same format as a reply. The following events are currently
 available:
@@ -1490,7 +1500,7 @@ available:
 :  Sent when a configured binding is executed
 |- 0x80000006
 :  shutdown
-:  Sent when the ipc shuts down because sway is exiting
+:  Sent when the ipc shuts down because scroll is exiting
 |- 0x80000007
 :  tick
 :  Sent when an ipc client sends a _SEND\_TICK_ message
@@ -1786,7 +1796,7 @@ following properties:
 
 Sent whenever the IPC is shutting down. The event is a single object with the
 property _change_, which is a string containing the reason for the shutdown.
-Currently, the only value for _change_ is _exit_, which is issued when sway is
+Currently, the only value for _change_ is _exit_, which is issued when scroll is
 exiting.
 
 *Example Event:*
@@ -1897,6 +1907,11 @@ The following change types are currently available:
 }
 ```
 
+## 0x80000030. SCROLLER
+
+Sent when a scroller property for the current workspace changes.
+
+
 # SEE ALSO
 
-*sway*(1) *sway*(5) *sway-bar*(5) *swaymsg*(1) *sway-input*(5) *sway-output*(5)
+*scroll*(1) *scroll*(5) *scroll-bar*(5) *scrollmsg*(1) *scroll-input*(5) *scroll-output*(5)

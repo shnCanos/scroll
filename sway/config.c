@@ -209,13 +209,13 @@ static void destroy_removed_seats(struct sway_config *old_config,
 }
 
 static void config_defaults(struct sway_config *config) {
-	if (!(config->swaynag_command = strdup("swaynag"))) goto cleanup;
+	if (!(config->swaynag_command = strdup("scrollnag"))) goto cleanup;
 	config->swaynag_config_errors = (struct swaynag_instance){0};
 	config->swaynag_config_errors.args = "--type error "
 			"--message 'There are errors in your config file' "
 			"--detailed-message "
-			"--button-no-terminal 'Exit sway' 'swaymsg exit' "
-			"--button-no-terminal 'Reload sway' 'swaymsg reload'";
+			"--button-no-terminal 'Exit scroll' 'scrollmsg exit' "
+			"--button-no-terminal 'Reload scroll' 'scrollmsg reload'";
 	config->swaynag_config_errors.detailed = true;
 
 	if (!(config->symbols = create_list())) goto cleanup;
@@ -414,11 +414,11 @@ static char *get_config_path(void) {
 	};
 
 	struct config_path config_paths[] = {
-		{ .prefix = home, .config_folder = ".sway"},
-		{ .prefix = config_home, .config_folder = "sway"},
+		{ .prefix = home, .config_folder = ".scroll"},
+		{ .prefix = config_home, .config_folder = "scroll"},
 		{ .prefix = home, .config_folder = ".i3"},
 		{ .prefix = config_home, .config_folder = "i3"},
-		{ .prefix = SYSCONFDIR, .config_folder = "sway"},
+		{ .prefix = SYSCONFDIR, .config_folder = "scroll"},
 		{ .prefix = SYSCONFDIR, .config_folder = "i3"}
 	};
 

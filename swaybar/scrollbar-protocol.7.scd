@@ -1,13 +1,13 @@
-swaybar-protocol(7)
+scrollbar-protocol(7)
 
 # NAME
 
-swaybar-protocol - JSON status line protocol for swaybar
+scrollbar-protocol - JSON status line protocol for scrollbar
 
 # SUMMARY
 
-swaybar defines the following JSON protocol to specify what information is
-displayed in the status line on the right side of swaybar. The protocol
+scrollbar defines the following JSON protocol to specify what information is
+displayed in the status line on the right side of scrollbar. The protocol
 comprises a header, that is a JSON object, followed by a newline (*0x0A*),
 followed by an infinite JSON array that represents the information to display.
 All communication is done by writing the status line to standard output and
@@ -32,11 +32,11 @@ _version_ is required):
 |- cont_signal
 :  integer
 :  SIGCONT
-:  The signal that swaybar should send to continue processing
+:  The signal that scrollbar should send to continue processing
 |- stop_signal
 :  integer
 :  SIGSTOP
-:  The signal that swaybar should send to stop processing
+:  The signal that scrollbar should send to stop processing
 
 ## MINIMAL HEADER
 ```
@@ -115,12 +115,12 @@ properties (only _full_text_ is required):
    _instance_ pair.
 |- urgent
 :  boolean
-:  Whether the block should be displayed as urgent. Currently swaybar utilizes
-   the colors set in the sway config for urgent workspace buttons. See
-   *sway-bar*(5) for more information on bar color configuration.
+:  Whether the block should be displayed as urgent. Currently scrollbar utilizes
+   the colors set in the scroll config for urgent workspace buttons. See
+   *scroll-bar*(5) for more information on bar color configuration.
 |- separator
 :  boolean
-:  Whether the bar separator should be drawn after the block. See *sway-bar*(5)
+:  Whether the bar separator should be drawn after the block. See *scroll-bar*(5)
    for more information on how to set the separator text.
 |- separator_block_width
 :  integer
@@ -131,7 +131,7 @@ properties (only _full_text_ is required):
 :  The type of markup to use when parsing the text for the block. This can
    either be _pango_ or _none_ (default).
 
-Other properties may be given and swaybar will ignore any property that it does
+Other properties may be given and scrollbar will ignore any property that it does
 not know. It is recommended to prefix any custom properties with an underscore
 to make it easier to distinguish them from protocol properties.
 
@@ -197,7 +197,7 @@ to make it easier to distinguish them from protocol properties.
 
 # CLICK EVENTS
 
-If requested in the header, swaybar will write a JSON object, that can be read
+If requested in the header, scrollbar will write a JSON object, that can be read
 from standard in, when the user clicks on a block. The event object will have
 the following properties:
 
@@ -239,7 +239,7 @@ the following properties:
 *Differences from i3bar's protocol:*
 - _button_ may be _0_ for buttons that do not have x11 button mappings
 - _event_ has been introduced to allow for non-x11 buttons to be represented
-- The _modifiers_ property is not currently added by swaybar
+- The _modifiers_ property is not currently added by scrollbar
 
 ## EXAMPLE
 
@@ -260,4 +260,4 @@ the following properties:
 
 # SEE ALSO
 
-*sway-bar*(5)
+*scroll-bar*(5)

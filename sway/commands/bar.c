@@ -42,7 +42,7 @@ static const struct cmd_handler bar_handlers[] = {
 // Must be in alphabetical order for bsearch
 static const struct cmd_handler bar_config_handlers[] = {
 	{ "id", bar_cmd_id },
-	{ "swaybar_command", bar_cmd_swaybar_command },
+	{ "scrollbar_command", bar_cmd_swaybar_command },
 };
 
 // Determines whether the subcommand is valid in any bar handler struct

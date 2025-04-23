@@ -1,8 +1,8 @@
-sway-output(5)
+scroll-output(5)
 
 # NAME
 
-sway-output - output configuration commands for sway
+scroll-output - output configuration commands for scroll
 
 # DESCRIPTION
 
@@ -10,14 +10,14 @@ You may combine output commands into one, like so:
 
 	output HDMI-A-1 mode 1920x1080 pos 1920 0 bg ~/wallpaper.png stretch
 
-You can get a list of output names with *swaymsg -t get_outputs*. You may also
+You can get a list of output names with *scrollmsg -t get_outputs*. You may also
 match any output by using the output name "\*". Additionally, "-" can be used
 to match the focused output by name and "--" can be used to match the focused
 output by its identifier.
 
 Some outputs may have different names when disconnecting and reconnecting. To
 identify these, the name can be substituted for a string consisting of the make,
-model and serial which you can get from *swaymsg -t get_outputs*. Each value
+model and serial which you can get from *scrollmsg -t get_outputs*. Each value
 must be separated by one space. For example:
 
 	output "Some Company ABC123 0x00000000" pos 1920 0
@@ -28,7 +28,7 @@ must be separated by one space. For example:
 	Configures the specified output to use the given mode. Modes are a
 	combination of width and height (in pixels) and a refresh rate that your
 	display can be configured to use. For a list of available modes for each
-	output, use *swaymsg -t get_outputs*.
+	output, use *scrollmsg -t get_outputs*.
 
 	To set a custom mode not listed in the list of available modes, use
 	*--custom*. You should probably only use this if you know what you're
@@ -91,7 +91,7 @@ must be separated by one space. For example:
 	usually auto-detected, but some displays may misreport their subpixel
 	geometry. Using the correct subpixel hinting allows for sharper text.
 	Incorrect values will result in blurrier text. When changing this via
-	*swaymsg*, some applications may need to be restarted to use the new value.
+	*scrollmsg*, some applications may need to be restarted to use the new value.
 
 *output* <name> background|bg <file> <mode> [<fallback_color>]
 	Sets the wallpaper for the given output to the specified file, using the
@@ -133,17 +133,17 @@ must be separated by one space. For example:
 	Deprecated. Alias for _power_.
 
 *output* <name> max_render_time off|<msec>
-	Controls when sway composites the output, as a positive number of
+	Controls when scroll composites the output, as a positive number of
 	milliseconds before the next display refresh. A smaller number leads to
 	fresher composited frames and lower perceived input latency, but if set too
-	low, sway may not finish compositing in time for display refresh, leading to
+	low, scroll may not finish compositing in time for display refresh, leading to
 	delayed frames.
 
-	When set to off, sway composites immediately after display refresh,
+	When set to off, scroll composites immediately after display refresh,
 	maximizing time available for compositing.
 
 	To adjust when applications are instructed to render, see *max_render_time*
-	in *sway*(5).
+	in *scroll*(5).
 
 	To set this up for optimal latency:
 	. Launch some _full-screen_ application that renders continuously, like
@@ -205,11 +205,11 @@ must be separated by one space. For example:
 	display refresh.
 
 	To adjust whether tearing is allowed for specific applications, see
-	*allow_tearing* in *sway*(5). Note that tearing will only be enabled
+	*allow_tearing* in *scroll*(5). Note that tearing will only be enabled
 	when it's allowed for both the output and the application.
 
 	This setting only has effect when a window is fullscreen on the output.
 
 # SEE ALSO
 
-*sway*(5) *sway-input*(5)
+*scroll*(5) *scroll-input*(5)
