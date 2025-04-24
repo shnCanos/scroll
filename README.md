@@ -32,8 +32,7 @@ supports some added features:
 
 ## Documentation
 
-The documentation is evolving. Currently, this README is the main source of
-information to learn about differences between *sway/i3* and *scroll*. For
+This README explains the basic differences between *sway/i3* and *scroll*. For
 people unfamiliar with *i3* or *sway*, it is advised to read their
 documentation, as compatibility is very high.
 
@@ -45,6 +44,16 @@ documentation, as compatibility is very high.
 
 [Example configuration](https://github.com/dawsers/scroll/blob/master/config.in)
 
+You can also read *scroll's* man pages for details on the commands. They are
+mostly up to date.
+
+``` bash
+man 5 scroll
+man 1 scroll
+man 1 scrollmsg
+man 7 scroll-ipc
+```
+
 ## Building and Installing
 
 *scroll* is a stable fork of *sway*; the build tree is basically the
@@ -53,30 +62,21 @@ same and the executables are renamed to *scroll*, "scrollmsg", "scrollnag" and
 
 ### Arch Linux
 
-If you are using Arch Linux, there is a PKGBUILD included in the repository.
-To install *scroll*, follow these steps:
+If you are using Arch Linux, there is an AUR package you can install:
+
+`sway-scroll-git`
 
 ``` sh
-cd /tmp
-git clone https://github.com/dawsers/scroll.git
-cd scroll/aur/sway-scroll.git
-makepkg
-# makepkg will create a package in the current directory, for example
-# sway-scroll-git-.rxxxxx.pkg.tar.zst
-# Install it
-sudo pacman -U sway-scroll-git-.rxxxxx.pkg.tar.zst
+paru -S sway-scroll-git
 ```
 
 Now prepare a configuration file `~/.config/scroll/config` using the provided
 example (`/etc/scroll/config`), and you can start *scroll* from a tty.
 
-NOTE: Make sure you recompile the package every time you update a dependency,
-specially `wlroots-git`. Otherwise, your old version will crash at startup.
-
 
 ### Requirements
 
-[sway compiling instructions](https://github.com/swaywm/sway#compiling-from-source)
+If you want to compile *scroll* yourself, [sway compiling instructions](https://github.com/swaywm/sway#compiling-from-source)
 apply to *scroll*.
 
 
