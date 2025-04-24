@@ -63,14 +63,56 @@ The following commands may only be used in the configuration file.
 *bar* [<bar-id>] <bar-subcommands...>
 	For details on bar subcommands, see *scroll-bar*(5).
 
-*default_orientation* horizontal|vertical|auto
+*default_orientation* <horizontal|vertical|auto>
 	Sets the default container layout for tiled containers.
+
+*fullscreen_movefocus* <true|false>
+	Default value is _true_. Allows you to change focus while in full screen
+	mode. Full screen will follow focus.
+
+*gesture_scroll_enable* <true|false>
+	Default value is _true_. Enables trackpad layout scrolling.
+
+*gesture_scroll_fingers* <number>
+	Default is _3_. Number of fingers assigned to the scrolling gesture.
+
+*gesture_scroll_sensitivity* <number>
+	Default is _1.0_. Increase if you want more sensitivity.
 
 *include* <paths...>
 	Include files from _paths_. _paths_ can include either a full path or a
 	path relative to the parent config, and expands shell syntax (see
 	*wordexp*(3) for details). The same include file can only be included once;
 	subsequent attempts will be ignored.
+
+*jump_labels_background* <color>
+	Default is _#00000000_ (transparent). Color of the background of the jump
+	labels.
+
+*jump_labels_color* <color>
+	Default is _#159E3080_. Color of the jump labels.
+
+*jump_labels_keys* <string>
+	Default is _1234_. Keys that will be used to generate possible jump labels.
+
+*jump_labels_scale* <number>
+	Default is _0.5_. Scale of the label within the window.
+
+*layout_default_height* <number>
+	Default is _1.0_. Sets the default height for new windows
+	("horizontal" layouts) or rows ("vertical" layouts).
+
+*layout_default_width* <number>
+	Default is _0.5_. Sets the default width for new columns
+	("horizontal" layout) or windows ("vertical" layouts).
+
+*layout_heights* <array of numbers>
+	Default is _[0.33333333, 0.5, 0.66666667, 1.0]_. These are the fractions
+	_cycle_size_ will use when resizing the height of columns/windows.
+
+*layout_widths* <array of numbers>
+	Default is _[0.33333333, 0.5, 0.66666667, 1.0]_. These are the fractions
+	_cycle_size_ will use when resizing the width of columns/windows.
 
 *swaybg_command* <command>
 	Executes custom background _command_. Default is _swaybg_. Refer to
@@ -103,6 +145,20 @@ The following commands may only be used in the configuration file.
 The following commands cannot be used directly in the configuration file.
 They are expected to be used with *bindsym* or at runtime through *scrollmsg*(1).
 
+*align* <left|right|center|up|down|middle|reset>
+	Columns are generally aligned in automatic mode, always making the active
+	one visible, and trying to make at least the previously focused one visible
+	too if it fits the viewport, if not, the one adjacent on the other side.
+	However, you can always align any column to the center, left or right
+	of the monitor (in horizontal mode), or up (top), down (bottom) or to
+	the center in vertical mode. For example center a column for easier
+	reading, regardless of what happens to the other columns. If you want to
+	go back to automatic mode, you need to use the _set_mode_ modifier
+	reorder_auto or call _align_ reset.
+
+	You can also center a window on your workspace using _middle_, it will
+	center its column, and also the window within the column.
+
 *border* none|normal|csd|pixel [<n>]
 	Set border style for focused window. _normal_ includes a border of
 	thickness _n_ and a title bar. _pixel_ is a border without title bar _n_
@@ -113,8 +169,29 @@ They are expected to be used with *bindsym* or at runtime through *scrollmsg*(1)
 *border* toggle
 	Cycles through the available border styles.
 
+*cycle_size* <h|v> <next|prev>
+	Cycles the widths/heights of windows/columns/rows in horizontal or vertical
+	modes.
+
 *exit*
 	Exit scroll and end your Wayland session.
+
+*fit_size* <h|v> <active|visible|all|toend|tobeg> <proportional|equal>
+	Allows re-fitting the columns (horizontal mode) or windows (vertical mode)
+	you want to the screen extents. It accepts an argument related to the
+	columns/windows it will try to fit. The new width/height of each
+	column/window will be _proportional_ to its previous width or height,
+	relative to the other columns or windows affected, or _equal_ for all of them.
+
+	_active_: It will maximize the active column/window.
+	_visible_: All the currently fully or partially visible columns/windows
+	will be resized to fit in the screen.
+	_all_: All the columns in the row or windows in the column will be resized
+	to fit in the screen.
+	_toend_: All the columns or windows from the focused one to the end of the
+	row/column will be affected.
+	_tobeg_ or _tobeginning_: All the columns/windows from the focused one to
+	the beginning of the row/column will now fit in screen.
 
 *floating* enable|disable|toggle
 	Make focused window floating, non-floating, or the opposite of what it is now.
@@ -122,7 +199,7 @@ They are expected to be used with *bindsym* or at runtime through *scrollmsg*(1)
 <criteria> *focus*
 	Moves focus to the container that matches the specified criteria.
 
-*focus* up|right|down|left
+*focus* up|right|down|left|begin|end
 	Moves focus to the next container in the specified direction.
 
 *focus* prev|next [sibling]
@@ -175,23 +252,13 @@ set|plus|minus|toggle <amount>
 	This can also be used with criteria to set an idle inhibitor for any
 	existing window or with _for_window_ to set idle inhibitors for future windows.
 
-*layout* default|splith|splitv|stacking|tabbed
-	Sets the layout mode of the focused container.
-
-	When using the _stacking_ layout, only the focused window in the container is
-	displayed, with the opened windows' list on the top of the container.
-
-	The _tabbed_ layout is similar to _stacking_, but the windows’ list is vertically
-	split.
-
-*layout* toggle [split|all]
-	Cycles the layout mode of the focused container though a preset list of
-	layouts. If no argument is given, then it cycles through stacking, tabbed
-	and the last split layout. If _split_ is given, then it cycles through
-	splith and splitv. If _all_ is given, then it cycles through every layout.
-
-*layout* toggle [split|tabbed|stacking|splitv|splith] [split|tabbed|stacking|splitv|splith]...
-	Cycles the layout mode of the focused container through a list of layouts.
+*jump*
+	Starts an overview mode where all the tiled windows of the visible
+	workspaces fit in their monitors. Each window will have an overlay with
+	the combination of keys that will change focus to each of them and exit
+	jump mode. Pressing any other combination of keys exits jump mode with
+	no change of focus. There are several options to modify the look and
+	content of the labels.
 
 *max_render_time* off|<msec>
 	Controls when the relevant application is told to render this window, as a
@@ -231,10 +298,28 @@ set|plus|minus|toggle <amount>
 	the per-output *allow_tearing* setting. See *scroll-output*(5) 
 	for further details.
 
-*move* left|right|up|down [<px> px]
+*move* left|right|up|down|beinning}end [<px> px] [nomode]
 	Moves the focused container in the direction specified. The optional _px_
-	argument specifies how many pixels to move the container. If unspecified,
-	the default is 10 pixels. Pixels are ignored when moving tiled containers.
+	argument specifies how many pixels to move the container if it is floating.
+	If unspecified,	the default is 10 pixels. Pixels are ignored when moving
+	tiled containers.
+
+	For tiled containers, depending on the mode and layout type, you will be
+	moving columns/rows or windows. You can move them in any direction, or to
+	the end/beginning of the row/column.
+
+	Aside from that, you can use _nomode_. With that argument, windows will
+	move freely. Movement will only move the active window, leaving its column
+	intact, regardless of which mode (h/v) you are currently in. For a
+	horizontal layout, the movement will be like this:
+
+	If the window is in some column with other windows, any left or right
+	movement will expel it to that side, creating a new column with just that
+	window. Moving it again will insert it in the column in the direction of
+	movement, and so on. Moving the window up or down will simply move it in
+	its current column. You can still use beginning/end to move it to the
+	edges of the row if it is alone in a column, or the edges of the column
+	if it has siblings in that column.
 
 *move* [absolute] position <pos_x> [px|ppt] <pos_y> [px|ppt]
 	Moves the focused container to the specified position in the workspace.
@@ -325,9 +410,58 @@ set|plus|minus|toggle <amount>
 	floating containers are resized in px and tiled containers by ppt. If
 	_width_ or _height_ is 0, the container will not be resized on that axis.
 
+*scale_content* <exact number|increment number|reset>
+	Scales the content of a window independently of the current monitor scale
+	or fractional scale. You can have several copies of the same application
+	with different scales. This works well for Wayland windows, and only
+	partially for XWayland windows. Use _exact_ and a scale to set the scale.
+	Use _increment_ with a delta value (for example 0.05 or -0.05) to increment
+	or decrement the current scale. Use _reset_ to recover the original scale.
+
+*scale_workspace* <exact number|increment number|reset|overview>
+	This command will scale the workspace to an _exact_ scale, or
+	incrementally by a delta value. If you want a useful automatic scale, use
+	the _overview_ argument which will fit all the windows of the workspace
+	in the current viewport.
+
+	You will still be able to interact with the windows normally (change focus,
+	move windows, create or destroy them, type in them etc.). Use it as a way
+	to see where things are and move the active focus, or reposition windows.
+
 *scratchpad* show
 	Shows a window from the scratchpad. Repeatedly using this command will
 	cycle through the windows in the scratchpad.
+
+*set_mode* [<h|v|t> <after|before|end|beg> <focus|nofocus>
+<center_horiz|nocenter_horiz> <center_vert|nocenter_vert>
+<reorder_auto|noreorder_auto>]
+	Modes and mode modifiers are per workspace.
+	At window creation time, scroll can apply several modifiers to the current
+	working mode (h/v). It supports extra arguments:
+	_<h|v|t>_: set horizontal, vertical, or toggle the current mode.
+	_position_: It is one of after (default), before, end, beg. This parameter
+	decides the position of new windows: after the current one (default value),
+	before the current one, at the end of the row/column, or at the beginning
+	of the row/column.
+	_focus_: One of focus (default) or nofocus. When creating a new window,
+	this parameter controls whether it will get focus or not.
+	_reorder_ automatic mode: reorder_auto (default) or noreorder_auto.
+	By default, scroll will reorder windows every time you change focus,
+	move or create new windows. But sometimes you want to keep the current
+	window in a certain position, for example when using _align_. _align_ turns
+	reordering mode to noreorder_auto, and the window will keep its position
+	regardless of what you do, until you set reorder_auto again.
+	_center_horiz/nocenter_horiz_: It will keep the active column centered
+	(or not) on the screen.
+	_center_vert/nocenter_vert_: It will keep the active window centered
+	(or not) in its column.
+
+	You can skip any number of parameters when calling the command, and
+	their order doesn't matter.
+
+*set_size* <h|v> <fraction>
+	It is similar to _cycle_size_, but instead of cycling the array of values,
+	it sets the width (_h_) or height (_v_) to _fraction_ directly.
 
 *shortcuts_inhibitor* enable|disable
 	Enables or disables the ability of clients to inhibit keyboard
@@ -852,6 +986,15 @@ The default colors are:
 *primary_selection* enabled|disabled
 	Enable or disable the primary selection clipboard. May only be configured
 	at launch. Default is _enabled_.
+
+*send_shortcut* [modifiers]<mouse button|key>
+	It will send the modifiers/key/mouse button combination to the currently
+	focused	application.
+
+	Example:
+	bindsym --whole-window button9 send_shortcut button2
+	will send a middle mouse button click to the application when you press
+	the back mouse button.
 
 *set* $<name> <value>
 	Sets variable $_name_ to _value_. You can use the new variable in the

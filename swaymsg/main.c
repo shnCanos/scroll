@@ -377,6 +377,51 @@ static void pretty_print_tree(json_object *obj, int indent) {
 	}
 }
 
+static void pretty_print_scroller(json_object *i) {
+	json_object *s;
+	json_object_object_get_ex(i, "scroller", &s);
+
+	json_object *workspace, *overview, *scaled, *scale, *mode, *insert, *focus,
+		*center_horiz, *center_vert, *reorder;
+
+	json_object_object_get_ex(s, "workspace", &workspace);
+	json_object_object_get_ex(s, "overview", &overview);
+	json_object_object_get_ex(s, "scaled", &scaled);
+	json_object_object_get_ex(s, "scale", &scale);
+	json_object_object_get_ex(s, "mode", &mode);
+	json_object_object_get_ex(s, "insert", &insert);
+	json_object_object_get_ex(s, "focus", &focus);
+	json_object_object_get_ex(s, "center_horizontal", &center_horiz);
+	json_object_object_get_ex(s, "center_vertical", &center_vert);
+	json_object_object_get_ex(s, "reorder", &reorder);
+
+	const char *fmt =
+		"Scroller:\n"
+		"  Workspace: %s\n"
+		"  Overview: %s\n"
+		"  Scaled: %s\n"
+		"  Scale: %.2f\n"
+		"  Mode: %s\n"
+		"  Insert: %s\n"
+		"  Focus: %s\n"
+		"  Center Horizontally: %s\n"
+		"  Center Vertically: %s\n"
+		"  Reorder: %s\n";
+
+	printf(fmt, json_object_get_string(workspace),
+		json_object_get_boolean(overview) ? "true" : "false",
+		json_object_get_boolean(scaled) ? "true" : "false",
+		json_object_get_double(scale),
+		json_object_get_string(mode),
+		json_object_get_string(insert),
+		json_object_get_boolean(focus) ? "true" : "false",
+		json_object_get_boolean(center_horiz) ? "true" : "false",
+		json_object_get_boolean(center_vert) ? "true" : "false",
+		json_object_get_string(reorder));
+
+	printf("\n");
+}
+
 static void pretty_print(int type, json_object *resp) {
 	switch (type) {
 	case IPC_SEND_TICK:
@@ -389,6 +434,9 @@ static void pretty_print(int type, json_object *resp) {
 		return;
 	case IPC_GET_TREE:
 		pretty_print_tree(resp, 0);
+		return;
+	case IPC_GET_SCROLLER:
+		pretty_print_scroller(resp);
 		return;
 	case IPC_COMMAND:
 	case IPC_GET_WORKSPACES:
@@ -540,6 +588,8 @@ int main(int argc, char **argv) {
 		type = IPC_SEND_TICK;
 	} else if (strcasecmp(cmdtype, "subscribe") == 0) {
 		type = IPC_SUBSCRIBE;
+	} else if (strcasecmp(cmdtype, "get_scroller") == 0) {
+		type = IPC_GET_SCROLLER;
 	} else {
 		if (quiet) {
 			exit(EXIT_FAILURE);

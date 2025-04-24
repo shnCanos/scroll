@@ -100,6 +100,9 @@ _scrollmsg_ [options...] [message]
 *get\_config*
 	Gets a copy of the current configuration. Doesn't expand includes.
 
+*get\_scroller*
+	Gets the scroll modifiers for the current workspace.
+
 *send\_tick*
 	Sends a tick event to all subscribed clients.
 

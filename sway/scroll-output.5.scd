@@ -210,6 +210,26 @@ must be separated by one space. For example:
 
 	This setting only has effect when a window is fullscreen on the output.
 
+*output* <name> layout_type <horizontal|vertical>
+	Sets the orientation of the layout for this output.
+
+*output* <name> layout_default_height <number>
+	Overrides the default height for new windows ("horizontal" layouts) or rows
+	("vertical" layouts) for this output.
+
+*output* <name> layout_default_width <number>
+	Overrides the default width for new columns ("horizontal" layout) or windows
+	("vertical" layouts) on this output.
+
+*output* <name> layout_heights <array of numbers>
+	Overrides the default fractions _cycle_size_ will use when resizing the height
+	of columns/windows on this output.
+
+*layout_widths* <array of numbers>
+	Overrides the default fractions _cycle_size_ will use when resizing the width
+	of columns/windows on this output.
+
+
 # SEE ALSO
 
 *scroll*(5) *scroll-input*(5)

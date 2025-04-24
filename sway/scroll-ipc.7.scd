@@ -1,8 +1,8 @@
-sscroll-ipc(7)
+scroll-ipc(7)
 
 # NAME
 
-sscroll-ipc - IPC protocol for scroll
+scroll-ipc - IPC protocol for scroll
 
 # DESCRIPTION
 
@@ -1466,7 +1466,62 @@ one seat. Each object has the following properties:
 *MESSAGE*++
 Retrieve the scroller properties of the current workspace
 
-TODO: Add documentation.
+*REPLY*++
+An object called "scroller", containing the following properties:
+
+[- *PROPERTY*
+:- *DATA TYPE*
+:- *DESCRIPTION*
+|- workspace
+:  string
+:  The name of the workspace
+|- overview
+:  boolean
+:  Overview is toggled?
+|- scaled
+:  boolean
+:  Is the workspace scaled?
+|- scale
+:  double
+:  The current scale of the workspace (-1.0 if not scaled)
+|- mode
+:  string
+:  Current mode: horizontal or vertical
+|- insert
+:  string
+:  Current insert mode: after/before/beginning/end
+|- focus
+:  boolean
+:  Focus new windows?
+|- center\_horizontal
+:  boolean
+:  Center columns?
+|- center\_vertical
+:  boolean
+:  Center window?
+|- reorder
+:  string
+:  auto (reorder) or lazy (no reorder)
+
+
+*Example Reply:*
+```
+{
+	"scroller": {
+		"workspace": "1",
+		"overview": false,
+		"scaled": false,
+		"scale": -1.00,
+		"mode": "horizontal",
+		"insert": "after",
+		"focus": true,
+		"center_horizontal": false,
+		"center_vertical": false,
+		"reorder": "auto"
+	}
+}
+```
+
 
 # EVENTS
 
@@ -1909,7 +1964,45 @@ The following change types are currently available:
 
 ## 0x80000030. SCROLLER
 
-Sent when a scroller property for the current workspace changes.
+Sent when a scroller property for the current workspace changes. The event
+consists of a single object with the following properties:
+
+[- *PROPERTY*
+:- *DATA TYPE*
+:- *DESCRIPTION*
+|- change
+:  string
+:[ The type of change that occurred. See below for more information
+|- scroller
+:  object
+:  An object representing the scroller modifiers affected
+
+
+The following change types are currently available:
+[- *TYPE*
+:- *DESCRIPTION*
+|- new
+:[ The workspace layout was created
+|- workspace
+:  The workspace changed
+|- overview
+:  Overview toggled
+|- scale
+:  Workspace scale changed
+|- reorder
+:  Reorder mode changed
+|- mode
+:  The layout mode changed
+|- insert
+:  The layout insertion mode changed
+|- focus
+:  Focus mode for the workspace changed
+|- center_horizontal
+:  Changed mode for center horizontally
+|- center_vertical
+:  Changed mode for center vertically
+
+For a description of the properties, see _GET_SCROLLER_
 
 
 # SEE ALSO
