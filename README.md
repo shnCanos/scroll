@@ -70,6 +70,9 @@ sudo pacman -U sway-scroll-git-.rxxxxx.pkg.tar.zst
 Now prepare a configuration file `~/.config/scroll/config` using the provided
 example (`/etc/scroll/config`), and you can start *scroll* from a tty.
 
+NOTE: Make sure you recompile the package every time you update a dependency,
+specially `wlroots-git`. Otherwise, your old version will crash at startup.
+
 
 ### Requirements
 

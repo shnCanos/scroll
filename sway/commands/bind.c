@@ -758,3 +758,141 @@ void binding_add_translated(struct sway_binding *binding,
 		free_sway_binding(config_binding);
 	}
 }
+
+// When pressing the binding, sends the argument keys/mouse to the application
+// Expected 'send_shortcut [modifiers]<mouse button|key>'
+struct cmd_results *cmd_send_shortcut(int argc, char **argv) {
+	struct cmd_results *error = NULL;
+	if ((error = checkarg(argc, "send_shortcut", EXPECTED_AT_LEAST, 1))) {
+		return error;
+	}
+	struct sway_binding *binding = calloc(1, sizeof(struct sway_binding));
+	if (!binding) {
+		return cmd_results_new(CMD_FAILURE, "Unable to allocate binding");
+	}
+
+	binding->input = strdup("*");
+	binding->keys = create_list();
+	binding->group = XKB_LAYOUT_INVALID;
+	binding->modifiers = 0;
+	binding->flags = BINDING_CODE;
+	binding->type = BINDING_KEYSYM;
+
+	list_t *split = split_string(argv[0], "+");
+	for (int i = 0; i < split->length; ++i) {
+		// Check for group
+		if (has_prefix(split->items[i], "Group")) {
+			if (binding->group != XKB_LAYOUT_INVALID) {
+				free_sway_binding(binding);
+				list_free_items_and_destroy(split);
+				return cmd_results_new(CMD_FAILURE,
+						"Only one group can be specified");
+			}
+			char *end;
+			int group = strtol(split->items[i] + strlen("Group"), &end, 10);
+			if (group < 1 || group > 4 || end[0] != '\0') {
+				free_sway_binding(binding);
+				list_free_items_and_destroy(split);
+				return cmd_results_new(CMD_FAILURE, "Invalid group");
+			}
+			binding->group = group - 1;
+			continue;
+		} else if (strcmp(split->items[i], "Mode_switch") == 0) {
+			// For full i3 compatibility, Mode_switch is an alias for Group2
+			if (binding->group != XKB_LAYOUT_INVALID) {
+				free_sway_binding(binding);
+				list_free_items_and_destroy(split);
+				return cmd_results_new(CMD_FAILURE,
+						"Only one group can be specified");
+			}
+			binding->group = 1;
+		}
+
+		// Check for a modifier key
+		uint32_t mod;
+		if ((mod = get_modifier_mask_by_name(split->items[i])) > 0) {
+			binding->modifiers |= mod;
+			continue;
+		}
+
+		// Identify the key and possibly change binding->type
+		uint32_t key_val = 0;
+		error = identify_key(split->items[i], binding->keys->length == 0,
+				     &key_val, &binding->type);
+		if (error) {
+			free_sway_binding(binding);
+			list_free(split);
+			return error;
+		}
+
+		uint32_t *key = calloc(1, sizeof(uint32_t));
+		if (!key) {
+			free_sway_binding(binding);
+			list_free_items_and_destroy(split);
+			return cmd_results_new(CMD_FAILURE,
+					"Unable to allocate binding key");
+		}
+		*key = key_val;
+		list_add(binding->keys, key);
+	}
+	list_free_items_and_destroy(split);
+
+	// sort ascending
+	list_qsort(binding->keys, key_qsort_cmp);
+
+	// translate keysyms into keycodes
+	if (!translate_binding(binding)) {
+		return cmd_results_new(CMD_FAILURE, "Unable to translate bindsym into bindcode: %s", argv[0]);
+	}
+
+	struct sway_seat *seat = config->handler_context.seat;
+	struct wlr_seat *wlr_seat = seat->wlr_seat;
+
+	seat_idle_notify_activity(seat, IDLE_SOURCE_KEYBOARD);
+
+	// Send keys/mouse to application
+	struct wlr_keyboard *current_keyboard = seat->wlr_seat->keyboard_state.keyboard;
+	if (current_keyboard == NULL) {
+		return cmd_results_new(CMD_FAILURE, "No available keyboard");
+	}
+
+	wlr_seat_set_keyboard(wlr_seat, current_keyboard);
+
+	struct wlr_keyboard_modifiers modifiers = {
+		.depressed = binding->modifiers,
+		.latched = 0,
+		.locked = 0,
+		.group = binding->group,
+	};
+	wlr_seat_keyboard_notify_modifiers(wlr_seat, &modifiers);
+
+	uint32_t time_msec = get_current_time_msec();
+	if (binding->type == BINDING_KEYCODE) {
+		enum wl_keyboard_key_state state = WL_KEYBOARD_KEY_STATE_PRESSED;
+		for (int i = 0; i < binding->keys->length; ++i) {
+			uint32_t *keycode = binding->keys->items[i];
+			cursor_notify_key_press(seat->cursor);
+			uint32_t code = *keycode - 8; // Because to libinput it is xkbcommon - 8
+			wlr_seat_keyboard_notify_key(wlr_seat, time_msec, code, state);
+		}
+		state = WL_KEYBOARD_KEY_STATE_RELEASED;
+		time_msec += 10;
+		for (int i = 0; i < binding->keys->length; ++i) {
+			uint32_t *keycode = binding->keys->items[i];
+			uint32_t code = *keycode - 8; // Because to libinput it is xkbcommon - 8
+			wlr_seat_keyboard_notify_key(wlr_seat, time_msec, code, state);
+		}
+	} else if (binding->type == BINDING_MOUSESYM) {
+		uint32_t *mousecode = binding->keys->items[0];
+		seat_pointer_notify_button(seat, time_msec, *mousecode, WL_POINTER_BUTTON_STATE_PRESSED);
+		seat_pointer_notify_button(seat, time_msec, *mousecode, WL_POINTER_BUTTON_STATE_RELEASED);
+		seatop_begin_default(seat);
+	}
+
+	modifiers.depressed = 0;
+	wlr_seat_keyboard_notify_modifiers(wlr_seat, &modifiers);
+
+	free_sway_binding(binding);
+
+	return cmd_results_new(CMD_SUCCESS, NULL);
+}

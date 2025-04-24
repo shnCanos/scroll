@@ -1,3 +1,5 @@
+# vim: ft=swayconfig
+#
 # Default config for scroll
 #
 # Copy this to ~/.config/scroll/config and edit it to your liking.
