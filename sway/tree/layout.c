@@ -107,6 +107,9 @@ static void recreate_buffers(struct sway_workspace *workspace) {
 }
 
 void layout_overview_recompute_scale(struct sway_workspace *workspace, int gaps) {
+	if (workspace->tiling->length == 0) {
+		return;
+	}
 	double w = gaps, maxh = -DBL_MAX;
 	for (int i = 0; i < workspace->tiling->length; ++i) {
 		const struct sway_container *con = workspace->tiling->items[i];
