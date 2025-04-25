@@ -348,13 +348,13 @@ static double compute_active_offset(struct sway_workspace *workspace,
 			// Note that previous and next positions may be wrong because we could be moving the active container
 			if (prev) {
 				double prev_x = a_x - scale * (prev->pending.width + 2 * gaps);
-				if (prev_x >= workspace->x && prev_x + scale * prev->pending.width <= workspace->x + width) {
+				if (prev_x - scale * gaps >= workspace->x && prev_x + scale * (prev->pending.width + gaps) <= workspace->x + width) {
 					keep_current = true;
 				}
 			}
 			if (!keep_current && next) {
 				double next_x = a_x + scale * (a_w + 2 * gaps);
-				if (next_x >= workspace->x && next_x + scale * next->pending.width <= workspace->x + width) {
+				if (next_x - scale * gaps >= workspace->x && next_x + scale * (next->pending.width + gaps) <= workspace->x + width) {
 					keep_current = true;
 				}
 			}
@@ -385,7 +385,7 @@ static double compute_active_offset(struct sway_workspace *workspace,
 						return workspace->x + scale * (prev->pending.width + 3 * gaps);
 					} else {
 						// it doesn't fit and nothing on the right, move active to right edge of viewport
-						return workspace->x + width - scale * (a_w + 2 * gaps);
+						return workspace->x + width - scale * (a_w + gaps);
 					}
 				} else {
 					// nothing on the right or left, the window is in a correct position
@@ -445,13 +445,13 @@ static double compute_active_offset(struct sway_workspace *workspace,
 			// Note that previous and next positions may be wrong because we could be moving the active container
 			if (prev) {
 				double prev_y = a_y - scale * (prev->pending.height + 2 * gaps);
-				if (prev_y >= workspace->y && prev_y + scale * prev->pending.height <= workspace->y + height) {
+				if (prev_y - scale * gaps >= workspace->y && prev_y + scale * (prev->pending.height + gaps) <= workspace->y + height) {
 					keep_current = true;
 				}
 			}
 			if (!keep_current && next) {
 				double next_y = a_y + scale * (a_h + 2 * gaps);
-				if (next_y >= workspace->y && next_y + scale * next->pending.height <= workspace->y + height) {
+				if (next_y - scale * gaps >= workspace->y && next_y + scale * (next->pending.height + gaps) <= workspace->y + height) {
 					keep_current = true;
 				}
 			}
@@ -482,7 +482,7 @@ static double compute_active_offset(struct sway_workspace *workspace,
 						return workspace->y + scale * (prev->pending.height + 3 * gaps);
 					} else {
 						// it doesn't fit and nothing on the right, move active to right edge of viewport
-						return workspace->y + height - scale * (a_h + 2 * gaps);
+						return workspace->y + height - scale * (a_h + gaps);
 					}
 				} else {
 					// nothing on the right or left, the window is in a correct position
