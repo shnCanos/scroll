@@ -141,9 +141,6 @@ void workspace_remove_gaps(struct sway_workspace *ws);
 
 void workspace_add_gaps(struct sway_workspace *ws);
 
-struct sway_container *workspace_split(struct sway_workspace *workspace,
-		enum sway_container_layout layout);
-
 void workspace_update_representation(struct sway_workspace *ws);
 
 void workspace_get_box(struct sway_workspace *workspace, struct wlr_box *box);

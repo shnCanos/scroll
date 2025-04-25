@@ -912,28 +912,6 @@ void workspace_add_gaps(struct sway_workspace *ws) {
 	ws->height -= ws->current_gaps.top + ws->current_gaps.bottom;
 }
 
-struct sway_container *workspace_split(struct sway_workspace *workspace,
-		enum sway_container_layout layout) {
-	if (workspace->tiling->length == 0) {
-		layout_modifiers_set_mode(workspace, layout);
-		return NULL;
-	}
-
-	enum sway_container_layout old_layout = layout_modifiers_get_mode(workspace);
-	struct sway_container *middle = workspace_wrap_children(workspace);
-	layout_modifiers_set_mode(workspace, layout);
-	middle->pending.layout = old_layout;
-
-	struct sway_seat *seat;
-	wl_list_for_each(seat, &server.input->seats, link) {
-		if (seat_get_focus(seat) == &workspace->node) {
-			seat_set_focus(seat, &middle->node);
-		}
-	}
-
-	return middle;
-}
-
 void workspace_update_representation(struct sway_workspace *ws) {
 	size_t len = container_build_representation(layout_modifiers_get_mode(ws), ws->tiling, NULL);
 	free(ws->representation);

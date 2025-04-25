@@ -474,22 +474,6 @@ set|plus|minus|toggle <amount>
 	established by the *seat* subcommand of the same name. See
 	*scroll-input*(5) for more ways to affect inhibitors.
 
-*split* vertical|v|horizontal|h|none|n|toggle|t
-	Splits the current container, vertically or horizontally. When _none_ is
-	specified, the effect of a previous split is undone if the current
-	container is the only child of a split parent. When _toggle_ is
-	specified, the current container is split opposite to the parent
-	container's layout.
-
-*splith*
-	Equivalent to *split horizontal*
-
-*splitv*
-	Equivalent to *split vertical*
-
-*splitt*
-	Equivalent to *split toggle*
-
 *sticky* enable|disable|toggle
 	"Sticks" a floating window to the current output so that it shows up on all
 	workspaces.
