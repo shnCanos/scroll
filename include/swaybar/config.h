@@ -39,6 +39,7 @@ struct swaybar_config {
 	bool binding_mode_indicator;
 	bool wrap_scroll;
 	bool workspace_buttons;
+	bool scroller_indicator;
 	uint32_t workspace_min_width;
 	list_t *bindings;
 	struct wl_list outputs; // config_output::link
@@ -66,6 +67,7 @@ struct swaybar_config {
 		struct box_colors inactive_workspace;
 		struct box_colors urgent_workspace;
 		struct box_colors binding_mode;
+		struct box_colors scroller;
 	} colors;
 
 #if HAVE_TRAY

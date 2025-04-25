@@ -13,6 +13,7 @@ static const struct cmd_handler bar_colors_handlers[] = {
 	{ "focused_statusline", bar_colors_cmd_focused_statusline },
 	{ "focused_workspace", bar_colors_cmd_focused_workspace },
 	{ "inactive_workspace", bar_colors_cmd_inactive_workspace },
+	{ "scroller", bar_colors_cmd_scroller },
 	{ "separator", bar_colors_cmd_separator },
 	{ "statusline", bar_colors_cmd_statusline },
 	{ "urgent_workspace", bar_colors_cmd_urgent_workspace },
@@ -102,6 +103,15 @@ struct cmd_results *bar_colors_cmd_binding_mode(int argc, char **argv) {
 		&(config->current_bar->colors.binding_mode_text)
 	};
 	return parse_three_colors(colors, "binding_mode", argc, argv);
+}
+
+struct cmd_results *bar_colors_cmd_scroller(int argc, char **argv) {
+	char **colors[3] = {
+		&(config->current_bar->colors.scroller_border),
+		&(config->current_bar->colors.scroller_bg),
+		&(config->current_bar->colors.scroller_text)
+	};
+	return parse_three_colors(colors, "scroller", argc, argv);
 }
 
 struct cmd_results *bar_colors_cmd_focused_workspace(int argc, char **argv) {

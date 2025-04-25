@@ -70,6 +70,9 @@ void free_bar_config(struct bar_config *bar) {
 	free(bar->colors.binding_mode_border);
 	free(bar->colors.binding_mode_bg);
 	free(bar->colors.binding_mode_text);
+	free(bar->colors.scroller_border);
+	free(bar->colors.scroller_bg);
+	free(bar->colors.scroller_text);
 #if HAVE_TRAY
 	list_free_items_and_destroy(bar->tray_outputs);
 	free(bar->icon_theme);
@@ -101,6 +104,7 @@ struct bar_config *default_bar_config(void) {
 	bar->strip_workspace_numbers = false;
 	bar->strip_workspace_name = false;
 	bar->binding_mode_indicator = true;
+	bar->scroller_indicator = true;
 	bar->verbose = false;
 	bar->modifier = get_modifier_mask_by_name("Mod4");
 	bar->status_padding = 1;
@@ -169,6 +173,9 @@ struct bar_config *default_bar_config(void) {
 	bar->colors.binding_mode_border = NULL;
 	bar->colors.binding_mode_bg = NULL;
 	bar->colors.binding_mode_text = NULL;
+	bar->colors.scroller_border = NULL;
+	bar->colors.scroller_bg = NULL;
+	bar->colors.scroller_text = NULL;
 
 #if HAVE_TRAY
 	bar->tray_padding = 2;
@@ -210,7 +217,7 @@ static void invoke_swaybar(struct bar_config *bar) {
 
 	pid_t pid = fork();
 	if (pid < 0) {
-		sway_log(SWAY_ERROR, "Failed to create fork for swaybar");
+		sway_log(SWAY_ERROR, "Failed to create fork for scrollbar");
 		return;
 	} else if (pid == 0) {
 		if (!sway_set_cloexec(sockets[1], false)) {
@@ -224,7 +231,7 @@ static void invoke_swaybar(struct bar_config *bar) {
 
 		// run custom swaybar
 		char *const cmd[] = {
-				bar->swaybar_command ? bar->swaybar_command : "swaybar",
+				bar->swaybar_command ? bar->swaybar_command : "scrollbar",
 				"-b", bar->id, NULL};
 		execvp(cmd[0], cmd);
 		_exit(EXIT_FAILURE);
@@ -235,14 +242,14 @@ static void invoke_swaybar(struct bar_config *bar) {
 		return;
 	}
 
-	sway_log(SWAY_DEBUG, "Spawned swaybar %s", bar->id);
+	sway_log(SWAY_DEBUG, "Spawned scrollbar %s", bar->id);
 }
 
 void load_swaybar(struct bar_config *bar) {
 	if (bar->client != NULL) {
 		wl_client_destroy(bar->client);
 	}
-	sway_log(SWAY_DEBUG, "Invoking swaybar for bar id '%s'", bar->id);
+	sway_log(SWAY_DEBUG, "Invoking scrollbar for bar id '%s'", bar->id);
 	invoke_swaybar(bar);
 }
 

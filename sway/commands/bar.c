@@ -23,6 +23,7 @@ static const struct cmd_handler bar_handlers[] = {
 	{ "pango_markup", bar_cmd_pango_markup },
 	{ "position", bar_cmd_position },
 	{ "separator_symbol", bar_cmd_separator_symbol },
+	{ "scroller_indicator", bar_cmd_scroller_indicator },
 	{ "status_command", bar_cmd_status_command },
 	{ "status_edge_padding", bar_cmd_status_edge_padding },
 	{ "status_padding", bar_cmd_status_padding },

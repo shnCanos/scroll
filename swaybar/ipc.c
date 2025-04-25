@@ -80,6 +80,9 @@ static void ipc_parse_colors(
 		{ "binding_mode_border", &config->colors.binding_mode.border },
 		{ "binding_mode_bg", &config->colors.binding_mode.background },
 		{ "binding_mode_text", &config->colors.binding_mode.text },
+		{ "scroller_border", &config->colors.scroller.border },
+		{ "scroller_bg", &config->colors.scroller.background },
+		{ "scroller_text", &config->colors.scroller.text },
 	};
 
 	for (size_t i = 0; i < sizeof(properties) / sizeof(properties[i]); i++) {
@@ -184,6 +187,11 @@ static bool ipc_parse_config(
 	if (mode) {
 		free(config->mode);
 		config->mode = strdup(json_object_get_string(mode));
+	}
+
+	json_object *scroller = json_object_object_get(bar_config, "scroller_indicator");
+	if (scroller) {
+		config->scroller_indicator = json_object_get_boolean(scroller);
 	}
 
 	json_object *outputs = json_object_object_get(bar_config, "outputs");
@@ -408,6 +416,51 @@ bool ipc_get_workspaces(struct swaybar *bar) {
 	return determine_bar_visibility(bar, false);
 }
 
+bool ipc_get_scroller(struct swaybar *bar) {
+	uint32_t len = 0;
+	char *res = ipc_single_command(bar->ipc_socketfd,
+			IPC_GET_SCROLLER, NULL, &len);
+	json_object *results = json_tokener_parse(res);
+	if (!results) {
+		free(res);
+		return false;
+	}
+
+	free(bar->scroll_mode);
+	free(bar->scroll_insert);
+	free(bar->scroll_reorder);
+
+	json_object *s;
+	json_object_object_get_ex(results, "scroller", &s);
+
+	json_object *overview, *scaled, *scale, *mode, *insert, *focus,
+		*center_horiz, *center_vert, *reorder;
+
+	json_object_object_get_ex(s, "overview", &overview);
+	json_object_object_get_ex(s, "scaled", &scaled);
+	json_object_object_get_ex(s, "scale", &scale);
+	json_object_object_get_ex(s, "mode", &mode);
+	json_object_object_get_ex(s, "insert", &insert);
+	json_object_object_get_ex(s, "focus", &focus);
+	json_object_object_get_ex(s, "center_horizontal", &center_horiz);
+	json_object_object_get_ex(s, "center_vertical", &center_vert);
+	json_object_object_get_ex(s, "reorder", &reorder);
+
+	bar->scroll_overview = json_object_get_boolean(overview);
+	bar->scroll_scaled = json_object_get_boolean(scaled);
+	bar->scroll_scale = json_object_get_double(scale);
+	bar->scroll_mode = strdup(json_object_get_string(mode));
+	bar->scroll_insert = strdup(json_object_get_string(insert));
+	bar->scroll_focus = json_object_get_boolean(focus);
+	bar->scroll_center_horizontal = json_object_get_boolean(center_horiz);
+	bar->scroll_center_vertical = json_object_get_boolean(center_vert);
+	bar->scroll_reorder = strdup(json_object_get_string(reorder));
+
+	json_object_put(results);
+	free(res);
+	return determine_bar_visibility(bar, false);
+}
+
 void ipc_execute_binding(struct swaybar *bar, struct swaybar_binding *bind) {
 	sway_log(SWAY_DEBUG, "Executing binding for button %u (release=%d): `%s`",
 			bind->button, bind->release, bind->command);
@@ -427,7 +480,7 @@ bool ipc_initialize(struct swaybar *bar) {
 	free(res);
 
 	char *subscribe =
-		"[ \"barconfig_update\", \"bar_state_update\", \"mode\", \"workspace\" ]";
+		"[ \"barconfig_update\", \"bar_state_update\", \"mode\", \"workspace\", \"scroller\" ]";
 	len = strlen(subscribe);
 	free(ipc_single_command(bar->ipc_event_socketfd,
 			IPC_SUBSCRIBE, subscribe, &len));
@@ -589,6 +642,9 @@ bool handle_ipc_readable(struct swaybar *bar) {
 		}
 		break;
 	}
+	case IPC_EVENT_SCROLLER:
+		bar_is_dirty = ipc_get_scroller(bar);
+		break;
 	case IPC_EVENT_BARCONFIG_UPDATE:
 		bar_is_dirty = handle_barconfig_update(bar, resp->payload, result);
 		break;

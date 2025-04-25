@@ -27,6 +27,17 @@ struct swaybar {
 	bool visible_by_mode;
 	bool visible;
 
+	// scroll specific
+	bool scroll_overview;
+	bool scroll_scaled;
+	double scroll_scale;
+	char *scroll_mode;
+	char *scroll_insert;
+	bool scroll_focus;
+	bool scroll_center_horizontal;
+	bool scroll_center_vertical;
+	char *scroll_reorder;
+
 	struct wl_display *display;
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;

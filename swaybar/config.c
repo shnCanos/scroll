@@ -35,6 +35,7 @@ struct swaybar_config *init_config(void) {
 	config->wrap_scroll = false;
 	config->workspace_buttons = true;
 	config->workspace_min_width = 0;
+	config->scroller_indicator = true;
 	config->bindings = create_list();
 	wl_list_init(&config->outputs);
 	config->status_padding = 1;
@@ -75,6 +76,10 @@ struct swaybar_config *init_config(void) {
 	config->colors.binding_mode.border = 0x2F343AFF;
 	config->colors.binding_mode.background = 0x900000FF;
 	config->colors.binding_mode.text = 0xFFFFFFFF;
+
+	config->colors.scroller.border = 0x2F343AFF;
+	config->colors.scroller.background = 0x055E20FF;
+	config->colors.scroller.text = 0xFFFFFFFF;
 
 #if HAVE_TRAY
 	config->tray_padding = 2;

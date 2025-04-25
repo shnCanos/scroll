@@ -454,6 +454,10 @@ bool bar_setup(struct swaybar *bar, const char *socket_path) {
 	if (bar->config->workspace_buttons) {
 		ipc_get_workspaces(bar);
 	}
+
+	if (bar->config->scroller_indicator) {
+		ipc_get_scroller(bar);
+	}
 	determine_bar_visibility(bar, false);
 	return true;
 }
@@ -551,4 +555,7 @@ void bar_teardown(struct swaybar *bar) {
 	}
 	free(bar->id);
 	free(bar->mode);
+	free(bar->scroll_mode);
+	free(bar->scroll_insert);
+	free(bar->scroll_reorder);
 }

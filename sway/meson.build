@@ -151,6 +151,7 @@ sway_sources = files(
 	'commands/bar/pango_markup.c',
 	'commands/bar/position.c',
 	'commands/bar/separator_symbol.c',
+	'commands/bar/scroller_indicator.c',
 	'commands/bar/status_command.c',
 	'commands/bar/status_edge_padding.c',
 	'commands/bar/status_padding.c',

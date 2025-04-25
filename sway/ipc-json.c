@@ -1275,6 +1275,8 @@ json_object *ipc_json_describe_bar_config(struct bar_config *bar) {
 			json_object_new_int(bar->workspace_min_width));
 	json_object_object_add(json, "binding_mode_indicator",
 			json_object_new_boolean(bar->binding_mode_indicator));
+	json_object_object_add(json, "scroller_indicator",
+			json_object_new_boolean(bar->scroller_indicator));
 	json_object_object_add(json, "verbose",
 			json_object_new_boolean(bar->verbose));
 	json_object_object_add(json, "pango_markup",
@@ -1363,6 +1365,30 @@ json_object *ipc_json_describe_bar_config(struct bar_config *bar) {
 				json_object_new_string(bar->colors.binding_mode_text));
 	} else {
 		json_object_object_add(colors, "binding_mode_text",
+				json_object_new_string(bar->colors.urgent_workspace_text));
+	}
+
+	if (bar->colors.scroller_border) {
+		json_object_object_add(colors, "scroller_border",
+				json_object_new_string(bar->colors.scroller_border));
+	} else {
+		json_object_object_add(colors, "scroller_border",
+				json_object_new_string(bar->colors.urgent_workspace_border));
+	}
+
+	if (bar->colors.scroller_bg) {
+		json_object_object_add(colors, "scroller_bg",
+				json_object_new_string(bar->colors.scroller_bg));
+	} else {
+		json_object_object_add(colors, "scroller_bg",
+				json_object_new_string(bar->colors.urgent_workspace_bg));
+	}
+
+	if (bar->colors.scroller_text) {
+		json_object_object_add(colors, "scroller_text",
+				json_object_new_string(bar->colors.scroller_text));
+	} else {
+		json_object_object_add(colors, "scroller_text",
 				json_object_new_string(bar->colors.urgent_workspace_text));
 	}
 

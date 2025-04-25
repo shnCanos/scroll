@@ -377,6 +377,7 @@ struct bar_config {
 	bool strip_workspace_numbers;
 	bool strip_workspace_name;
 	bool binding_mode_indicator;
+	bool scroller_indicator;
 	bool verbose;
 	struct side_gaps gaps;
 	int status_padding;
@@ -404,6 +405,9 @@ struct bar_config {
 		char *binding_mode_border;
 		char *binding_mode_bg;
 		char *binding_mode_text;
+		char *scroller_border;
+		char *scroller_bg;
+		char *scroller_text;
 	} colors;
 
 #if HAVE_TRAY

@@ -95,6 +95,9 @@ runtime.
 *position* top|bottom
 	Sets position of the bar. Default is _bottom_.
 
+*scroller_indicator* yes|no
+	Enable or disable the scoller modes indicator. Default is _yes_.
+
 *separator_symbol* <symbol>
 	Specifies the separator symbol to separate blocks on the bar.
 
@@ -230,6 +233,10 @@ must be defined in hex: _#RRGGBB_ or _#RRGGBBAA_.
 
 *binding_mode* <border> <background> <text>
 	Border, background and text color for the binding mode indicator. If not used,
+	the colors will be taken from _urgent_workspace_.
+
+*scroller* <border> <background> <text>
+	Border, background and text color for the scroller indicator. If not used,
 	the colors will be taken from _urgent_workspace_.
 
 # SEE ALSO

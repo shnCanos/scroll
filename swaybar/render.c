@@ -497,6 +497,58 @@ static uint32_t predict_binding_mode_indicator_length(cairo_t *cairo,
 	return width;
 }
 
+static uint32_t predict_scroller_item_length(cairo_t *cairo,
+		struct swaybar_output *output, const char *str) {
+	struct swaybar_config *config = output->bar->config;
+	int text_width, text_height;
+	get_text_size(cairo, config->font_description, &text_width, &text_height, NULL,
+			1, output->bar->mode_pango_markup,
+			"%s", str);
+
+	int ws_vertical_padding = WS_VERTICAL_PADDING;
+	int ws_horizontal_padding = WS_HORIZONTAL_PADDING;
+	int border_width = BORDER_WIDTH;
+
+	uint32_t ideal_height = text_height + ws_vertical_padding * 2
+		+ border_width * 2;
+	uint32_t ideal_surface_height = ideal_height;
+	if (!output->bar->config->height &&
+			output->height < ideal_surface_height) {
+		return 0;
+	}
+	uint32_t width = text_width + ws_horizontal_padding * 2 + border_width * 2;
+	if (width < config->workspace_min_width) {
+		width = config->workspace_min_width;
+	}
+	return width;
+}
+
+static uint32_t predict_scroller_indicator_length(cairo_t *cairo,
+		struct swaybar_output *output) {
+	uint32_t width = 0;
+	struct swaybar_config *config = output->bar->config;
+	if (config->scroller_indicator) {
+		const char *strs[] = {
+			output->bar->scroll_mode,
+			output->bar->scroll_insert,
+			output->bar->scroll_focus ? "" : "",
+			output->bar->scroll_center_horizontal ? "" : " ",
+			output->bar->scroll_center_vertical ? "󰉠" : " ",
+			output->bar->scroll_reorder,
+			output->bar->scroll_overview ? "🐦" : " ",
+			output->bar->scroll_scaled ? "S" : " "
+		};
+		for (uint32_t i = 0; i < 8; ++i) {
+			uint32_t w = predict_scroller_item_length(cairo, output, strs[i]);
+			if (w == 0) {
+				return 0;
+			}
+			width += w;
+		}
+	}
+	return width;
+}
+
 static uint32_t render_status_line_i3bar(struct render_context *ctx, double *x) {
 	struct swaybar_output *output = ctx->output;
 	uint32_t max_height = 0;
@@ -508,6 +560,7 @@ static uint32_t render_status_line_i3bar(struct render_context *ctx, double *x) 
 	double reserved_width =
 			predict_workspace_buttons_length(cairo, output) +
 			predict_binding_mode_indicator_length(cairo, output) +
+			predict_scroller_indicator_length(cairo, output) +
 			3; // require a bit of space for margin
 
 	double predicted_full_pos =
@@ -691,6 +744,87 @@ static uint32_t render_workspace_button(struct render_context *ctx,
 	return output->height;
 }
 
+static uint32_t render_scroller_item(struct render_context *ctx,
+		double *x, const char *str) {
+	struct swaybar_output *output = ctx->output;
+	cairo_t *cairo = ctx->cairo;
+	struct swaybar_config *config = output->bar->config;
+	int text_width, text_height;
+	get_text_size(cairo, config->font_description, &text_width, &text_height, NULL,
+			1, output->bar->mode_pango_markup,
+			"%s", str);
+
+	int ws_vertical_padding = WS_VERTICAL_PADDING;
+	int ws_horizontal_padding = WS_HORIZONTAL_PADDING;
+	int border_width = BORDER_WIDTH;
+
+	uint32_t ideal_height = text_height + ws_vertical_padding * 2
+		+ border_width * 2;
+	uint32_t ideal_surface_height = ideal_height;
+	if (!output->bar->config->height &&
+			output->height < ideal_surface_height) {
+		return ideal_surface_height;
+	}
+	uint32_t width = text_width + ws_horizontal_padding * 2 + border_width * 2;
+	if (width < config->workspace_min_width) {
+		width = config->workspace_min_width;
+	}
+
+	uint32_t height = output->height;
+	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
+	cairo_set_source_u32(cairo, config->colors.scroller.background);
+	ctx->background_color = config->colors.scroller.background;
+	ctx->has_transparency |= (config->colors.scroller.background & 0xFF) != 0xFF;
+	cairo_rectangle(cairo, *x, 0, width, height);
+	cairo_fill(cairo);
+
+	cairo_set_source_u32(cairo, config->colors.scroller.border);
+	cairo_rectangle(cairo, *x, 0, width, border_width);
+	cairo_fill(cairo);
+	cairo_rectangle(cairo, *x, 0, border_width, height);
+	cairo_fill(cairo);
+	cairo_rectangle(cairo, *x + width - border_width, 0, border_width, height);
+	cairo_fill(cairo);
+	cairo_rectangle(cairo, *x, height - border_width, width, border_width);
+	cairo_fill(cairo);
+
+	double text_y = height / 2.0 - text_height / 2.0;
+	cairo_set_source_u32(cairo, config->colors.scroller.text);
+	cairo_move_to(cairo, *x + width / 2 - text_width / 2, (int)floor(text_y));
+	choose_text_aa_mode(ctx, config->colors.scroller.text);
+	render_text(cairo, config->font_description, 1, output->bar->mode_pango_markup,
+			"%s", str);
+	*x += width;
+	return output->height;
+}
+
+static uint32_t render_scroller_indicator(struct render_context *ctx,
+		double *x) {
+	struct swaybar_output *output = ctx->output;
+
+	uint32_t max_height = 0;
+	struct swaybar_config *config = output->bar->config;
+	const char *strs[] = {
+		output->bar->scroll_mode,
+		output->bar->scroll_insert,
+		output->bar->scroll_focus ? "" : "",
+		output->bar->scroll_center_horizontal ? "" : " ",
+		output->bar->scroll_center_vertical ? "󰉠" : " ",
+		output->bar->scroll_reorder,
+		output->bar->scroll_overview ? "🐦" : " ",
+		output->bar->scroll_scaled ? "S" : " "
+	};
+	if (config->scroller_indicator) {
+		for (uint32_t i = 0; i < 8; ++i) {
+			uint32_t h = render_scroller_item(ctx, x, strs[i]);
+			if (h > max_height) {
+				max_height = h;
+			}
+		}
+	}
+	return max_height;
+}
+
 static uint32_t render_to_cairo(struct render_context *ctx) {
 	cairo_t *cairo = ctx->cairo;
 	struct swaybar_output *output = ctx->output;
@@ -725,6 +859,10 @@ static uint32_t render_to_cairo(struct render_context *ctx) {
 			uint32_t h = render_workspace_button(ctx, ws, &x);
 			max_height = h > max_height ? h : max_height;
 		}
+	}
+	if (config->scroller_indicator) {
+		uint32_t h = render_scroller_indicator(ctx, &x);
+		max_height = h > max_height ? h : max_height;
 	}
 	if (config->binding_mode_indicator) {
 		uint32_t h = render_binding_mode_indicator(ctx, x);
