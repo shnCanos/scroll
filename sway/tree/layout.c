@@ -363,14 +363,10 @@ void layout_move_container_to_workspace(struct sway_container *container, struct
 		struct sway_container *con = container->view ? container->pending.parent : container;
 		int old_idx = list_find(old_ws->tiling, con);
 		list_del(old_ws->tiling, old_idx);
-		// Update active container in old_ws
-		int old_active = old_idx == 0 ? 0 : old_idx - 1;
-		old_ws->current.focused_inactive_child = old_ws->tiling->length > 0 ? old_ws->tiling->items[old_active] : NULL;
 		node_set_dirty(&old_ws->node);
 		// Find insertion point
 		enum sway_layout_insert pos = layout_modifiers_get_insert(workspace);
 		layout_workspace_add_container(workspace, active, con, pos);
-		workspace->current.focused_inactive_child = con;
 		node_set_dirty(&con->node);
 	} else {
 		// Move only the view
@@ -382,7 +378,6 @@ void layout_move_container_to_workspace(struct sway_container *container, struct
 		node_set_dirty(&parent->node);
 		container_reap_empty(parent);
 		layout_add_view(workspace, active, container);
-		workspace->current.focused_inactive_child = container;
 		node_set_dirty(&container->node);
 	}
 	workspace_update_representation(workspace);
@@ -400,9 +395,6 @@ static void drag_parent_container_to_workspace(struct sway_container *container,
 	if (old_idx >= 0) {
 		// Only if moving a parent container, not if moving a view wrapped into a new container (still not in the tiling list)
 		list_del(old_workspace->tiling, old_idx);
-		// Update active container
-		int old_active = old_idx == 0 ? 0 : old_idx - 1;
-		old_workspace->current.focused_inactive_child = old_workspace->tiling->length > 0 ? old_workspace->tiling->items[old_active] : NULL;
 	}
 	//node_set_dirty(&old_workspace->node);
 	if (old_workspace != workspace) {
@@ -444,9 +436,6 @@ void layout_drag_container_to_workspace(struct sway_container *container, struct
 
 static void remove_active_parent_container_from_workspace(int idx, struct sway_workspace *workspace) {
 	list_del(workspace->tiling, idx);
-	// Update active container
-	int active = idx == 0 ? 0 : idx - 1;
-	workspace->current.focused_inactive_child = workspace->tiling->length > 0 ? workspace->tiling->items[active] : NULL;
 	workspace_update_representation(workspace);
 	node_set_dirty(&workspace->node);
 }
@@ -566,9 +555,6 @@ static struct sway_container *extract_view(struct sway_container *view) {
 	list_t *siblings = parent->pending.children;
 	int idx = list_find(siblings, view);
 	list_del(siblings, idx);
-	if (parent->pending.focused_inactive_child == view && siblings->length > 0) {
-		parent->pending.focused_inactive_child = siblings->items[idx >= siblings->length ? idx - 1 : idx];
-	}
 	container_update_representation(parent);
 	node_set_dirty(&parent->node);
 	container_reap_empty(parent);
@@ -584,11 +570,10 @@ static void insert_view_before(struct sway_container *container, struct sway_con
 	int tidx = list_find(parent->pending.children, target);
 	list_insert(parent->pending.children, tidx, container);
 	container->pending.parent = parent;
-	parent->pending.focused_inactive_child = container;
 	container_update_representation(parent);
 	node_set_dirty(&parent->node);
 }
-//
+
 // Extract view container from parent and insert into target's parent, after target,
 // possibly removing container's parent if empty
 static void insert_view_after(struct sway_container *container, struct sway_container *target) {
@@ -598,7 +583,6 @@ static void insert_view_after(struct sway_container *container, struct sway_cont
 	int tidx = list_find(parent->pending.children, target);
 	list_insert(parent->pending.children, tidx + 1, container);
 	container->pending.parent = parent;
-	parent->pending.focused_inactive_child = container;
 	container_update_representation(parent);
 	node_set_dirty(&parent->node);
 }
@@ -645,12 +629,6 @@ static void	swap_views(struct sway_container *container, struct sway_container *
 	target->pending.parent = cparent;
 	target->pending.workspace = cworkspace;
 	container->pending.workspace = tworkspace;
-	if (cparent->pending.focused_inactive_child == container) {
-		cparent->pending.focused_inactive_child = target;
-	}
-	if (tparent->pending.focused_inactive_child == target) {
-		tparent->pending.focused_inactive_child = container;
-	}
 	container_update_representation(cparent);
 	node_set_dirty(&cparent->node);
 	container_update_representation(tparent);
