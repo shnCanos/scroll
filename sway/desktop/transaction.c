@@ -766,13 +766,13 @@ static void arrange_workspace_floating(struct sway_workspace *ws) {
 
 static void arrange_workspace_tiling(struct sway_workspace *ws,
 		int width, int height) {
-	if (ws->current.tiling->length == 0) {
+	if (ws->tiling->length == 0) {
 		return;
 	}
 	if (layout_overview_enabled(ws)) {
 		layout_overview_recompute_scale(ws, ws->gaps_inner);
 	}
-	arrange_children(layout_get_type(ws), ws->current.tiling,
+	arrange_children(layout_get_type(ws), ws->tiling,
 		ws->current.focused_inactive_child, ws->layers.tiling,
 		width, height, ws->gaps_inner);
 }
