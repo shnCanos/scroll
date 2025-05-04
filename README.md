@@ -6,8 +6,7 @@ only supports one layout, a scrolling layout similar to
 [PaperWM](https://github.com/paperwm/PaperWM), [niri](https://github.com/YaLTeR/niri)
 or [hyprscroller](https://github.com/dawsers/hyprscroller).
 
-[scroll.mp4](https://github.com/user-attachments/assets/7f0bdd7f-bac7-4760-8473-2179dec88738)
-
+[scroll.mp4](https://github.com/user-attachments/assets/3f1a53ca-1954-4b19-9a1b-61345d739fea)
 
 *scroll* works very similarly to *hyprscroller*, and it is also mostly
 compatible with *sway* configurations aside from the window layout. It
