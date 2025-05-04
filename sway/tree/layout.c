@@ -274,10 +274,14 @@ static void layout_container_add_view(struct sway_container *active, struct sway
 static struct sway_container *layout_wrap_into_container(struct sway_container *child,
 		enum sway_container_layout layout) {
 	struct sway_container *cont = container_create(NULL);
+	cont->current.width = child->current.width;
+	cont->current.height = child->current.height;
 	cont->pending.width = child->pending.width;
 	cont->pending.height = child->pending.height;
 	cont->width_fraction = child->width_fraction;
 	cont->height_fraction = child->height_fraction;
+	cont->current.x = child->current.x;
+	cont->current.y = child->current.y;
 	cont->pending.x = child->pending.x;
 	cont->pending.y = child->pending.y;
 	cont->pending.layout = layout;
@@ -309,10 +313,15 @@ static void layout_workspace_add_view(struct sway_workspace *workspace, struct s
 	// Set the container and view width/height
 	if (view->width_fraction <= 0.0) {
 		view->width_fraction = layout_get_default_width(workspace);
+		// Start the animation from the center of the workspace
+		view->current.x = workspace->x + 0.5 * workspace->width;
+		parent->current.x = view->current.x;
 	}
 	parent->width_fraction = view->width_fraction;
 	if (view->height_fraction <= 0.0) {
 		view->height_fraction = layout_get_default_height(workspace);
+		view->current.y = workspace->y + 0.5 * workspace->height;
+		parent->current.y = view->current.y;
 	}
 	parent->height_fraction = view->height_fraction;
 	// Insert the container
@@ -764,43 +773,6 @@ void layout_drag_container_to_container(struct sway_container *container, struct
 	workspace_update_representation(workspace);
 	node_set_dirty(&workspace->node);
 }
-
-void layout_cycle_width(struct sway_scroller *layout, int step) {
-
-}
-
-void layout_cycle_height(struct sway_scroller *layout, int step) {
-
-}
-
-void layout_set_width(struct sway_scroller *layout, double fraction) {
-
-}
-
-void layout_set_height(struct sway_scroller *layout, double fraction) {
-
-}
-
-void layout_fit_width(struct sway_scroller *layout, enum sway_layout_fit_group group) {
-
-}
-
-void layout_fit_height(struct sway_scroller *layout, enum sway_layout_fit_group group) {
-
-}
-#if 0
-static bool layout_is_parallel(enum sway_container_layout layout,
-		enum sway_layout_direction dir) {
-	switch (layout) {
-	case L_HORIZ:
-		return dir == DIR_LEFT || dir == DIR_RIGHT || dir == DIR_BEGIN || dir == DIR_END;
-	case L_VERT:
-		return dir == DIR_UP || dir == DIR_DOWN || dir == DIR_BEGIN || dir == DIR_END;
-	default:
-		return false;
-	}
-}
-#endif
 
 static int layout_direction_compute_index(list_t *list, void *item,
 		enum sway_layout_direction dir, bool detach) {

@@ -12,6 +12,7 @@
 #include "sway/tree/workspace.h"
 #include "log.h"
 #include "util.h"
+#include "sway/desktop/animation.h"
 
 #define AXIS_HORIZONTAL (WLR_EDGE_LEFT | WLR_EDGE_RIGHT)
 #define AXIS_VERTICAL   (WLR_EDGE_TOP | WLR_EDGE_BOTTOM)
@@ -195,6 +196,9 @@ static struct cmd_results *resize_adjust_tiled(uint32_t axis,
 	if (fail) {
 		return cmd_results_new(CMD_INVALID, "Cannot resize any further");
 	}
+
+	animation_create(ANIM_WINDOW_SIZE);
+
 	if (current->pending.parent) {
 		arrange_container(current->pending.parent);
 	} else {
@@ -286,6 +290,9 @@ static struct cmd_results *resize_set_tiled(struct sway_container *con,
 	if (fail) {
 		return cmd_results_new(CMD_INVALID, "Invalid size");
 	}
+
+	animation_create(ANIM_WINDOW_SIZE);
+
 	if (con->pending.parent) {
 		arrange_container(con->pending.parent);
 	} else {

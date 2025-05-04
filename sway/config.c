@@ -166,6 +166,20 @@ void free_config(struct sway_config *config) {
 		}
 		list_free(config->criteria);
 	}
+
+	if (config->animations.anim_default) {
+		destroy_animation_curve(config->animations.anim_default);
+	}
+	if (config->animations.window_open) {
+		destroy_animation_curve(config->animations.window_open);
+	}
+	if (config->animations.window_move) {
+		destroy_animation_curve(config->animations.window_move);
+	}
+	if (config->animations.window_size) {
+		destroy_animation_curve(config->animations.window_size);
+	}
+
 	list_free_items_and_destroy(config->layout_widths);
 	list_free_items_and_destroy(config->layout_heights);
 	free(config->jump_labels_keys);
@@ -250,6 +264,21 @@ static void config_defaults(struct sway_config *config) {
 	config->gesture_scroll_enable = true;
 	config->gesture_scroll_fingers = 3;
 	config->gesture_scroll_sentitivity = 1.0f;
+
+	config->animations.frequency_ms = 16; // ~60 Hz
+	config->animations.enabled = true;
+	double points[] = { 0.215, 0.61, 0.355, 1.0 };
+	list_t *default_points = create_list();
+	for (uint32_t i = 0; i < sizeof(points) / sizeof(double); ++i) {
+		double *val = malloc(sizeof(double));
+		*val = points[i];
+		list_add(default_points, val);
+	}
+	config->animations.anim_default = create_animation_curve(true, 300, 3, default_points, 0.0, 0, NULL);
+	list_free_items_and_destroy(default_points);
+	config->animations.window_open = NULL;
+	config->animations.window_move = NULL;
+	config->animations.window_size = NULL;
 
 	if (!(config->input_type_configs = create_list())) goto cleanup;
 	if (!(config->input_configs = create_list())) goto cleanup;

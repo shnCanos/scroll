@@ -115,13 +115,6 @@ void layout_drag_container_to_workspace(struct sway_container *container, struct
 void layout_drag_container_to_container(struct sway_container *container, struct sway_container *target,
 		struct sway_workspace *workspace, enum wlr_edges edge);
 
-void layout_cycle_width(struct sway_scroller *layout, int step);
-void layout_cycle_height(struct sway_scroller *layout, int step);
-void layout_set_width(struct sway_scroller *layout, double fraction);
-void layout_set_height(struct sway_scroller *layout, double fraction);
-void layout_fit_width(struct sway_scroller *layout, enum sway_layout_fit_group group);
-void layout_fit_height(struct sway_scroller *layout, enum sway_layout_fit_group group);
-
 bool layout_move_container(struct sway_container *container, enum sway_layout_direction dir, bool nomode);
 
 void layout_toggle_pin(struct sway_scroller *layout);

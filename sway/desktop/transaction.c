@@ -7,6 +7,7 @@
 #include "sway/scene_descriptor.h"
 #include "sway/desktop/idle_inhibit_v1.h"
 #include "sway/desktop/transaction.h"
+#include "sway/desktop/animation.h"
 #include "sway/input/cursor.h"
 #include "sway/input/input-manager.h"
 #include "sway/output.h"
@@ -18,6 +19,7 @@
 #include "sway/tree/layout.h"
 #include "list.h"
 #include "log.h"
+#include "util.h"
 
 struct sway_transaction {
 	struct wl_event_source *timer;
@@ -519,106 +521,176 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			workspace->width, workspace->height, gaps);
 	}
 
+	double t, x, y, anim_scale;
+	animation_get_values(&t, &x, &y, &anim_scale);
 	if (layout == L_VERT) {
-		double off = offset - workspace->y;
+		double off = offset;
 		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
-			double cheight = child->pending.height;
+			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
-			sway_scene_node_set_position(&child->scene_tree->node, 0, round(off));
-			double delta = child->pending.content_y - child->pending.y;
-			child->pending.y = off + workspace->y;
+			double movement = fabs(off - child->animation.y0);
+			if (movement > 0.0) {
+				child->animation.yt = linear_scale(child->animation.y0, off, x);
+			} else {
+				child->animation.yt = child->animation.y0 + y * anim_scale * workspace->height;
+			}
+			sway_scene_node_set_position(&child->scene_tree->node, 0, round(child->animation.yt - workspace->y));
+			double delta = child->pending.content_y - child->current.y;
+			child->current.y = off;
+			child->pending.y = off;
 			if (child->view) {
-				child->pending.content_y = child->pending.y + delta;
+				child->pending.content_y = child->current.y + delta;
 			}
 			if (parent) {
-				delta = parent->pending.x - child->pending.x;
+				delta = parent->current.x - child->current.x;
+				child->current.x = parent->current.x;
 				child->pending.x = parent->pending.x;
 				if (child->view) {
 					child->pending.content_x += delta;
 				}
 			}
 			sway_scene_node_reparent(&child->scene_tree->node, content);
-			arrange_container(child, child->pending.width, cheight, true, gaps);
-			off += scale * (cheight + 2 * gaps);
+			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
+			arrange_container(child, child->animation.wt, child->animation.ht, true, gaps);
+			off += scale * (child->pending.height + 2 * gaps);
 		}
-		off = offset - workspace->y;
+		off = offset;
 		for (int i = active_idx - 1; i >= 0; i--) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
-			double cheight = child->pending.height;
-			off -= scale * (cheight + 2 * gaps);
-			double delta = child->pending.content_y - child->pending.y;
-			child->pending.y = off + workspace->y;
+			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
+			off -= scale * (child->pending.height + 2 * gaps);
+			double delta = child->pending.content_y - child->current.y;
+			child->current.y = off;
+			child->pending.y = off;
 			if (child->view) {
-				child->pending.content_y = child->pending.y + delta;
+				child->pending.content_y = child->current.y + delta;
 			}
 			if (parent) {
-				delta = parent->pending.x - child->pending.x;
+				delta = parent->current.x - child->current.x;
+				child->current.x = parent->current.x;
 				child->pending.x = parent->pending.x;
 				if (child->view) {
 					child->pending.content_x += delta;
 				}
 			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
-			sway_scene_node_set_position(&child->scene_tree->node, 0, round(off));
+			double movement = fabs(off - child->animation.y0);
+			if (movement > 0.0) {
+				child->animation.yt = linear_scale(child->animation.y0, off, x);
+			} else {
+				child->animation.yt = child->animation.y0 + y * anim_scale * workspace->height;
+			}
+			sway_scene_node_set_position(&child->scene_tree->node, 0, round(child->animation.yt - workspace->y));
 			sway_scene_node_reparent(&child->scene_tree->node, content);
-			arrange_container(child, child->pending.width, cheight, true, gaps);
+			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
+			arrange_container(child, child->animation.wt, child->animation.ht, true, gaps);
 		}
 	} else if (layout == L_HORIZ) {
-		double off = offset - workspace->x;
+		double off = offset;
 		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
-			int cwidth = child->pending.width;
+			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
+			double movement = fabs(off - child->animation.x0);
+			if (movement > 0.0) {
+				child->animation.xt = linear_scale(child->animation.x0, off, x);
+			} else {
+				child->animation.xt = child->animation.x0 + y * anim_scale * workspace->width;
+			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
-			sway_scene_node_set_position(&child->scene_tree->node, round(off), 0);
+			sway_scene_node_set_position(&child->scene_tree->node, round(child->animation.xt - workspace->x), 0);
 			// Update child for next iteration. Transactions don't re-arrange
 			// the layout (arrange.c:apply_xxx()), so we need to set it here,
 			// otherwise the next call will have the positions wrong and the
 			// offset won't be optimal.
-			double delta = child->pending.content_x - child->pending.x;
-			child->pending.x = off + workspace->x;
+			double delta = child->pending.content_x - child->current.x;
+			child->current.x = off;
+			child->pending.x = off;
 			if (child->view) {
-				child->pending.content_x = child->pending.x + delta;
+				child->pending.content_x = child->current.x + delta;
 			}
 			if (parent) {
-				delta = parent->pending.y - child->pending.y;
+				delta = parent->current.y - child->current.y;
+				child->current.y = parent->current.y;
 				child->pending.y = parent->pending.y;
 				if (child->view) {
 					child->pending.content_y += delta;
 				}
 			}
 			sway_scene_node_reparent(&child->scene_tree->node, content);
-			arrange_container(child, cwidth, child->pending.height, true, gaps);
-			off += scale * (cwidth + 2 * gaps);
+			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
+			arrange_container(child, child->animation.wt, child->animation.ht, true, gaps);
+			off += scale * (child->pending.width + 2 * gaps);
 		}
-		off = offset - workspace->x;
+		off = offset;
 		for (int i = active_idx - 1; i >= 0; i--) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
-			int cwidth = child->pending.width;
-			off -= scale * (cwidth + 2 * gaps);
-			double delta = child->pending.content_x - child->pending.x;
-			child->pending.x = off + workspace->x;
+			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
+			off -= scale * (child->pending.width + 2 * gaps);
+			double delta = child->pending.content_x - child->current.x;
+			child->current.x = off;
+			child->pending.x = off;
 			if (child->view) {
-				child->pending.content_x = child->pending.x + delta;
+				child->pending.content_x = child->current.x + delta;
 			}
 			if (parent) {
-				delta = parent->pending.y - child->pending.y;
+				delta = parent->current.y - child->current.y;
+				child->current.y = parent->current.y;
 				child->pending.y = parent->pending.y;
 				if (child->view) {
 					child->pending.content_y += delta;
 				}
 			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
-			sway_scene_node_set_position(&child->scene_tree->node, round(off), 0);
+			double movement = fabs(off - child->animation.x0);
+			if (movement > 0.0) {
+				child->animation.xt = linear_scale(child->animation.x0, off, x);
+			} else {
+				child->animation.xt = child->animation.x0 + y * anim_scale * workspace->width;
+			}
+			sway_scene_node_set_position(&child->scene_tree->node, round(child->animation.xt - workspace->x), 0);
 			sway_scene_node_reparent(&child->scene_tree->node, content);
-			arrange_container(child, cwidth, child->pending.height, true, gaps);
+			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
+			arrange_container(child, child->animation.wt, child->animation.ht, true, gaps);
 		}
 	} else {
 		sway_assert(false, "unreachable");
+	}
+}
+
+static void animation_clip_container(struct sway_container *con) {
+	if (!wl_list_empty(&con->view->content_tree->children)) {
+		if (!container_is_floating(con)) {
+			// Sometimes there could be a transaction timeout, and the surface
+			// is "officially" mapped, but hasn't provided a buffer. If we try
+			// to clip it, scroll will crash. This check (for lack of a better
+			// idea/solution) verifies we are not in that state.
+			if (con->view->surface->current.buffer_width <= 1 &&
+				con->view->surface->current.buffer_height <= 1) {
+			//if (con->view->surface->buffer->source->n_locks == 0) {
+				sway_scene_node_set_enabled(&con->view->scene_tree->node, false);
+				return;
+			}
+			sway_scene_node_set_enabled(&con->view->scene_tree->node, true);
+			// Clip the buffer to animation width, height
+			struct wlr_box clip = (struct wlr_box){
+				.x = con->view->geometry.x,
+				.y = con->view->geometry.y,
+			};
+			if (view_is_content_scaled(con->view)) {
+				float scale = view_get_content_scale(con->view);
+				clip.width = max(1, con->animation.wt / scale);
+				clip.height = max(1, con->animation.ht / scale);
+			} else {
+				clip.width = max(1, con->animation.wt);
+				clip.height = max(1, con->animation.ht);
+			}
+			sway_scene_subsurface_tree_set_clip(&con->view->content_tree->node, &clip);
+		}
 	}
 }
 
@@ -693,6 +765,10 @@ static void arrange_container(struct sway_container *con,
 		sway_scene_node_reparent(&con->view->scene_tree->node, con->content_tree);
 		sway_scene_node_set_position(&con->view->scene_tree->node,
 			border_left, border_top);
+
+		if (animation_enabled()) {
+			animation_clip_container(con);
+		}
 	} else {
 		// make sure to disable the title bar if the parent is not managing it
 		if (title_bar) {
@@ -971,6 +1047,10 @@ static void transaction_apply(struct sway_transaction *transaction) {
 	}
 }
 
+static void animation_callback(void *data) {
+	arrange_root(root);
+}
+
 static void transaction_commit_pending(void);
 
 static void transaction_progress(void) {
@@ -981,7 +1061,7 @@ static void transaction_progress(void) {
 		return;
 	}
 	transaction_apply(server.queued_transaction);
-	arrange_root(root);
+	animation_start(NULL, NULL, animation_callback, NULL, NULL, NULL);
 	cursor_rebase_all();
 	transaction_destroy(server.queued_transaction);
 	server.queued_transaction = NULL;
@@ -1158,6 +1238,53 @@ bool transaction_notify_view_ready_by_geometry(struct sway_view *view,
 	return false;
 }
 
+static void children_save_animation_variables(list_t *children) {
+	if (!children) {
+		return;
+	}
+	for (int i = 0; i < children->length; ++i) {
+		struct sway_container *child = children->items[i];
+		child->animation.x0 = child->current.x;
+		child->animation.y0 = child->current.y;
+		child->animation.w0 = child->current.width;
+		child->animation.h0 = child->current.height;
+		child->animation.w1 = child->pending.width;
+		child->animation.h1 = child->pending.height;
+		children_save_animation_variables(child->pending.children);
+	}
+}
+
+static void workspace_save_animation_variables(struct sway_workspace *ws) {
+	if (ws->tiling->length == 0) {
+		return;
+	}
+	children_save_animation_variables(ws->tiling);
+}
+
+static void save_animation_variables() {
+	struct sway_container *fs = root->fullscreen_global;
+
+	if (!fs) {
+		for (int j = 0; j < root->outputs->length; j++) {
+			struct sway_output *output = root->outputs->items[j];
+
+			for (int i = 0; i < output->current.workspaces->length; i++) {
+				struct sway_workspace *child = output->current.workspaces->items[i];
+
+				bool activated = output->current.active_workspace == child && output->wlr_output->enabled;
+
+				if (activated) {
+					struct sway_container *fs = child->current.fullscreen;
+
+					if (!fs) {
+						workspace_save_animation_variables(child);
+					}
+				}
+			}
+		}
+	}
+}
+
 static void _transaction_commit_dirty(bool server_request) {
 	if (!server.dirty_nodes->length) {
 		return;
@@ -1176,6 +1303,9 @@ static void _transaction_commit_dirty(bool server_request) {
 		node->dirty = false;
 	}
 	server.dirty_nodes->length = 0;
+
+	// Save states to animation variables
+	save_animation_variables();
 
 	transaction_commit_pending();
 }

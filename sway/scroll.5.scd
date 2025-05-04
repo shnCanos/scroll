@@ -60,6 +60,64 @@ to *scroll-input*(5) and *scroll-output*(5).
 ## Config only commands
 The following commands may only be used in the configuration file.
 
+*animations* <animations-subcommands...>
+	Subcommands are:
+
+	*enabled* <yes|no>
+	Default value is _yes_. Enables/disables animations globally.
+
+	*frequency_ms* <number>
+	Default is _16_. Number of milliseconds for each animation step. The
+	default is approximately the refresh rate of a monitor that works at 60 Hz.
+	If you need smoother animations, reduce this value. Use with caution to
+	avoid crashes or performance issues. The default should work for most cases
+	unless you have a very high refresh rate monitor.
+
+	*default* enabled [duration] [var animation curve] [off animation curve]
+	Default is default is _yes 300 var 3 [ 0.215 0.61 0.355 1 ]_.
+	Defines the default animation curve. Follows the format explained below.
+
+	*window_move* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows movement (`move` command).
+
+	*window_open* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows opening.
+
+	*window_size* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows resizing (_cycle_size_, _set_size_,
+	_fit_size_, and _resize_ commands).
+
+	Format of an animation curve:
+
+	The first field is _enabled_. It can be _yes_ or _no_. It enables or
+	disables animations for that operation. If set to _no_, you don't need to
+	define the curve. If set to _yes_, you can set the _duration_ if you
+	want to use the _default_ curve, or define the curves using the following
+	options.
+
+	_duration_ms_. Duration of the animation in milliseconds.
+
+	_var_. Defines the animation curve for the variable changing in the
+	operation/command. The fields are _order_ and _control_points_. _order_
+	defines the order of the Bezier curve that follows, and _control_points_ is
+	an array defining its control points except for the first, that is _(0, 0)_,
+	and the last, _(1, 1)_. The number of values in the array will be
+	_2 x (order - 1)_. A Bezier curve of _order_ needs _order + 1_ control
+	points to be defined, but we set the first and last to _(0, 0)_ and _(1, 1)_.
+	We use 2D Bezier curves, so the array needs _2 x (order - 1)_ numbers in it.
+
+	_off_. Defines the animation curve for the variable that doesn't change in the
+	operation/command. The fields are _scale_ _order_ and _control_points_.
+	_scale_ is the fraction of the workspace size used to scale the curve. As
+	the curve is defined from _(0, 0)_ to _(1, 0)_, we need a parameter to scale
+	the offset value. This parameter does that. For example, using a small parameter
+	like _0.05_, creates offsets of an order of 5% of the size of the workspace.
+	_order_ and _control_points_ work as in the _var_ case. But this time, the
+	points you will not include are: _(0, 0)_ (first) and _(1, 0)_ (last).
+
 *bar* [<bar-id>] <bar-subcommands...>
 	For details on bar subcommands, see *scroll-bar*(5).
 

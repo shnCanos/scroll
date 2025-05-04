@@ -133,6 +133,13 @@ struct sway_container {
 	// The container doesn't use a fraction for size
 	bool free_size;
 
+	// Animation variables
+	struct {
+		double x0, y0, w0, h0;
+		double xt, yt, wt, ht;
+		double w1, h1;
+	} animation;
+
 	// Indicates that the container is a scratchpad container.
 	// Both hidden and visible scratchpad containers have scratchpad=true.
 	// Hidden scratchpad containers have a NULL parent.

@@ -13,6 +13,8 @@ or [hyprscroller](https://github.com/dawsers/hyprscroller).
 compatible with *sway* configurations aside from the window layout. It
 supports some added features:
 
+* Animations: *scroll* supports very customizable animations.
+
 * Content scaling: The content of individual Wayland windows can be scaled
   independently of the general output scale.
 
@@ -345,6 +347,55 @@ not the active one if your configuration is set to focus following the mouse.
 You can also use the mouse (Mod + dragging with the center button pressed) to
 scroll.
 
+### Animations
+
+*scroll* supports very customizable animations using N-order Bezier curves.
+You can use specific animation curves for each operation, and each curve is
+composed of two additional curves. One controls the timing for the animation
+of the changing variable, and another an offset for the non-changing one.
+This means you can animate the speed of the effect, like in most compositors,
+but you can also animate the offset that isn't changing. For example, when
+a window is moving, you can animate the coordinate that is moving, but also
+define an oscillation for the coordinate that doesn't change.
+
+Using N-order Bezier curves, the curves can be practically anything. 
+
+There are two optional curves to define:
+
+- `var` defines the timing/position for the main animated variable, and should
+always start at (0, 0) and end at (1, 1). You only define the points in-between.
+(0, 0) is `time = 0` and initial `x` position. (1, 1) is `time = 1` (end of
+animation) and `x` at the final animation position.
+
+- `off` defines the positional offset for the variable that is static (for
+example, if moving on the x direction, `var` defines the timing of the x
+coordinate and `off` the offset for y). This curve starts at (0, 0) (initial
+`x` and `y` positions) and ends at (1, 0) (final `x` position, and final
+offset for `y` which is 0 because that is the variable that doesn't move. To
+avoid mistakes, you only define the points in-between.
+
+[This](https://nurbscalculator.in/) page has a Bezier curve design applet you
+can use to customize any curve. Don't forget to select `Bezier` as the type of
+the curve instead of the default `NURBS`. Here, you will need to add the
+origin and end points to be able to design the curve, but then you don't
+add them in your config.
+
+If you want some simpler (order 3) curves for the `var` curve, you can copy them
+from [here](https://www.cssportal.com/css-cubic-bezier-generator/). You can
+copy them directly, as they don't include the initial and last points either.
+
+Read the man pages and the section of this document on *Animation Options* for
+details, and try these example curves in your `config` to see it in action:
+
+``` config
+animations {
+    default yes 300 var 3 [ 0.215 0.61 0.355 1 ]
+    window_open yes 300 var 3 [ 0 0 1 1 ]
+    window_move yes 300 var 3 [ 0.215 0.61 0.355 1 ] off 0.05 6 [0 0.6 0.4 0 1 0 0.4 -0.6 1 -0.6]
+    window_size yes 300 var 3 [ -0.35 0 0 0.5 ]
+}
+```
+
 
 ### Tips for Using Marks
 
@@ -499,6 +550,72 @@ scrolling gesture.
 
 `gesture_scroll_sentitivity`: default is `1.0`. Increase if you want more
 sensitivity.
+
+### Animation Options
+
+You can define a block in your `config` file for animations. The block is
+called `animations`. Within that block there are several options allowed:
+
+`enabled`: (boolean) default is `yes`. Enables/disables animations globally.
+
+`frequency_ms`: (integer) default is `16`. Number of milliseconds for each
+animation step. The default is approximately the refresh rate of a monitor
+that works at 60 Hz. If you need smoother animations, reduce this value. Use
+with caution to avoid crashes or performance issues. The default should work
+for most cases unless you have a very high refresh rate monitor.
+
+`default`: defines the default animation curve. Follows the format explained
+below. default is `yes 300 var 3 [ 0.215 0.61 0.355 1 ]`
+
+`window_move`: defines the curve for windows movement (`move` command). By
+default it is not defined, so it uses the `default` curve unless you add one to
+your config.
+
+`window_open`: defines the curve for windows opening. By default it is not
+defined, so it uses the `default` curve unless you add one to your config.
+
+`window_size`: defines the curve for windows resizing (`cycle_size`,
+`set_size`, `fit_size`, `resize` commands). By default it is not defined, so
+it uses the `default` curve unless you add one to your config.
+
+Format of an animation curve:
+
+- The first field is `enabled`. It can be `yes` or `no`. It enables or
+  disables animations for that operation. If set to `no`, you don't need to
+  define the curve. If set to `yes`, you can set the `duration` if you
+  want to use the `default` curve, or define the curves using the following
+  options.
+
+- `duration_ms`. Duration of the animation in milliseconds.
+
+- `var`. Defines the animation curve for the variable changing in the
+  operation/command. The fields are `order` and `control_points`. `order`
+  defines the order of the Bezier curve that follows, and `control_points` is
+  an array defining its control points except for the first, that is `(0, 0)`,
+  and the last, `(1, 1)`. The number of values in the array will be `2 * (order - 1)`.
+  A Bezier curve of `order` needs `order + 1` control points to be
+  defined, but we set the first and last to `(0, 0)` and `(1, 1)`.
+  We use 2D Bezier curves, so the array needs `2 * (order -1)` numbers in it.
+
+- `off`. Defines the animation curve for the variable that doesn't change in the
+  operation/command. The fields are `scale` `order` and `control_points`.
+  `scale` is the fraction of the workspace size used to scale the curve. As
+  the curve is defined from `(0, 0)` to `(1, 0)`, we need a parameter to scale
+  the offset value. This parameter does that. For example, using a small parameter
+  like `0.05`, creates offsets of an order of `5%` of the size of the workspace.
+  `order` and `control_points` work as in the `var` case. But this time, the
+  points you will not include are: `(0, 0)` (first) and `(1, 0)` (last).
+
+Example:
+
+``` config
+animations {
+    default yes 300 var 3 [ 0.215 0.61 0.355 1 ]
+    window_open yes 300 var 3 [ 0 0 1 1 ]
+    window_move yes 300 var 3 [ 0.215 0.61 0.355 1 ] off 0.05 6 [0 0.6 0.4 0 1 0 0.4 -0.6 1 -0.6]
+    window_size yes 300 var 3 [ -0.35 0 0 0.5 ]
+}
+```
 
 
 ## IPC

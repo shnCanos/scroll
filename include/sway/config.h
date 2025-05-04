@@ -20,6 +20,7 @@
 #include "sway/tree/root.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 #include <pango/pangocairo.h>
+#include "sway/desktop/animation.h"
 
 // TODO: Refactor this shit
 
@@ -115,6 +116,18 @@ struct sway_mode {
 	list_t *switch_bindings;
 	list_t *gesture_bindings;
 	bool pango;
+};
+
+/**
+ * Configuration for animations
+ */
+struct sway_animations_config {
+	bool enabled;
+	uint32_t frequency_ms;
+	struct sway_animation_curve *anim_default;
+	struct sway_animation_curve *window_open;
+	struct sway_animation_curve *window_size;
+	struct sway_animation_curve *window_move;
 };
 
 struct input_config_mapped_from_region {
@@ -600,6 +613,8 @@ struct sway_config {
 	bool gesture_scroll_enable;
 	uint32_t gesture_scroll_fingers;
 	float gesture_scroll_sentitivity;
+
+	struct sway_animations_config animations;
 
 	// floating view
 	int32_t floating_maximum_width;

@@ -10,6 +10,7 @@
 #include "sway/tree/workspace.h"
 #include "sway/tree/layout.h"
 #include "util.h"
+#include "sway/desktop/animation.h"
 
 #define AXIS_HORIZONTAL (WLR_EDGE_LEFT | WLR_EDGE_RIGHT)
 #define AXIS_VERTICAL   (WLR_EDGE_TOP | WLR_EDGE_BOTTOM)
@@ -346,6 +347,7 @@ static struct cmd_results *fit_size(uint32_t axis, enum sway_layout_fit_group fi
 			fit_size_container(current->pending.parent ? current->pending.parent : current, fit, equal);
 		}
 	}
+	animation_create(ANIM_WINDOW_SIZE);
 
 	return cmd_results_new(CMD_SUCCESS, NULL);
 }

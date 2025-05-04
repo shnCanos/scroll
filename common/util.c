@@ -289,3 +289,7 @@ list_t *copy_double_list(list_t *src) {
 int max(int a, int b) {
     return a > b ? a : b;
 }
+
+double linear_scale(double a, double b, double t) {
+	return a + t * (b - a);
+}
