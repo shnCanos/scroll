@@ -119,6 +119,9 @@ struct cmd_results *cmd_cycle_size(int argc, char **argv) {
 	if (!current) {
 		return cmd_results_new(CMD_INVALID, "Cannot cycle_size nothing");
 	}
+	if (container_is_floating(current)) {
+		return cmd_results_new(CMD_INVALID, "Cannot cycle_size floating containers");
+	}
 
 	struct cmd_results *error;
 	if ((error = checkarg(argc, "cycle_size", EXPECTED_AT_LEAST, 2))) {

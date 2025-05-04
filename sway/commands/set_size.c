@@ -73,6 +73,9 @@ struct cmd_results *cmd_set_size(int argc, char **argv) {
 	if (!current) {
 		return cmd_results_new(CMD_INVALID, "Cannot set_size nothing");
 	}
+	if (container_is_floating(current)) {
+		return cmd_results_new(CMD_INVALID, "Cannot set_size floating containers");
+	}
 
 	struct cmd_results *error;
 	if ((error = checkarg(argc, "set_size", EXPECTED_AT_LEAST, 2))) {
