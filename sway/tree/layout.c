@@ -87,7 +87,7 @@ static void buffer_set_dest_size_iterator(struct sway_scene_buffer *buffer,
 	int width = state->width;
 	int height = state->height;
 
-	sway_scene_buffer_set_dest_size(buffer, width * *scale, height * *scale);
+	sway_scene_buffer_set_dest_size(buffer, round(width * *scale), round(height * *scale));
 }
 
 static void recreate_buffers(struct sway_workspace *workspace) {

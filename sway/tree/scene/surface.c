@@ -165,7 +165,7 @@ static void surface_reconfigure(struct sway_scene_surface *scene_surface) {
 	if (scale > 0.0f) {
 		total_scale *= scale;
 	}
-	sway_scene_buffer_set_dest_size(scene_buffer, width * total_scale, height * total_scale);
+	sway_scene_buffer_set_dest_size(scene_buffer, round(width * total_scale), round(height * total_scale));
 	sway_scene_buffer_set_transform(scene_buffer, state->transform);
 	sway_scene_buffer_set_opacity(scene_buffer, opacity);
 

@@ -719,7 +719,7 @@ static void arrange_container(struct sway_container *con,
 		struct sway_workspace *workspace = con->pending.workspace;
 		float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
 		int border_top = round(container_titlebar_height() * scale);
-		int border_width = round(con->current.border_thickness * scale);
+		int border_width = max(1, round(con->current.border_thickness * scale));
 		int width = round(scale * dwidth);
 		int height = round(scale * dheight);
 
