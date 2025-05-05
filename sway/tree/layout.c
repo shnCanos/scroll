@@ -102,6 +102,12 @@ static void recreate_buffers(struct sway_workspace *workspace) {
 			}
 			sway_scene_node_for_each_buffer(&view->content_tree->node,
 				buffer_set_dest_size_iterator, &total_scale);
+			// Views using CSD need to be reconfigured, otherwise the content
+			// is not in sync with our borders
+			if (view->view->using_csd) {
+				view_configure(view->view, view->pending.content_x, view->pending.content_y,
+					view->pending.content_width, view->pending.content_height);
+			}
 		}
 	}
 }
