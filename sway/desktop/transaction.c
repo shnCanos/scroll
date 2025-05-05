@@ -1282,11 +1282,7 @@ static void save_animation_variables() {
 				bool activated = output->current.active_workspace == child && output->wlr_output->enabled;
 
 				if (activated) {
-					struct sway_container *fs = child->current.fullscreen;
-
-					if (!fs) {
-						workspace_save_animation_variables(child);
-					}
+					workspace_save_animation_variables(child);
 				}
 			}
 		}
