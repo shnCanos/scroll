@@ -266,7 +266,10 @@ static void arrange_title_bar(struct sway_container *con,
 
 	sway_scene_node_set_position(&con->title_bar.tree->node, x, y);
 
-	con->title_width = width;
+	struct sway_workspace *workspace = con->pending.workspace;
+	float scale = workspace ? (layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f) : 1.0f;
+
+	con->title_width = width / scale;
 	container_arrange_title_bar(con);
 }
 

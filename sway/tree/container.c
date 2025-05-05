@@ -355,6 +355,9 @@ void container_arrange_title_bar(struct sway_container *con) {
 	pixman_region32_t text_area;
 	pixman_region32_init(&text_area);
 
+	struct sway_workspace *workspace = con->pending.workspace;
+	float scale = workspace ? (layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f) : 1.0f;
+
 	if (con->title_bar.marks_text) {
 		struct sway_text_node *node = con->title_bar.marks_text;
 		marks_buffer_width = node->width;
@@ -372,6 +375,7 @@ void container_arrange_title_bar(struct sway_container *con) {
 			width - h_padding - config->titlebar_h_padding);
 		alloc_width = MAX(alloc_width, 0);
 
+		sway_text_node_scale(node, scale);
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
 			h_padding, (height - node->height) >> 1);
@@ -398,6 +402,7 @@ void container_arrange_title_bar(struct sway_container *con) {
 			width - h_padding - config->titlebar_h_padding);
 		alloc_width = MAX(alloc_width, 0);
 
+		sway_text_node_scale(node, scale);
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
 			h_padding, (height - node->height) >> 1);
@@ -417,8 +422,8 @@ void container_arrange_title_bar(struct sway_container *con) {
 	int thickness = config->titlebar_border_thickness;
 	pixman_region32_init_rect(&background,
 		thickness, thickness,
-		width - thickness * 2, height - thickness * 2);
-	pixman_region32_init_rect(&border, 0, 0, width, height);
+		scale * width - thickness * 2, scale * height - thickness * 2);
+	pixman_region32_init_rect(&border, 0, 0, scale * width, scale * height);
 	pixman_region32_subtract(&border, &border, &background);
 
 	pixman_region32_subtract(&background, &background, &text_area);
