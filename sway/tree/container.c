@@ -375,13 +375,13 @@ void container_arrange_title_bar(struct sway_container *con) {
 			width - h_padding - config->titlebar_h_padding);
 		alloc_width = MAX(alloc_width, 0);
 
-		sway_text_node_scale(node, scale);
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
-			h_padding, (height - node->height) >> 1);
+			scale * h_padding, scale * ((height - node->height) >> 1));
+		sway_text_node_scale(node, scale);
 
 		pixman_region32_union_rect(&text_area, &text_area,
-			node->node->x, node->node->y, alloc_width, node->height);
+			node->node->x, node->node->y, scale * alloc_width, scale * node->height);
 	}
 
 	if (con->title_bar.title_text) {
@@ -402,13 +402,13 @@ void container_arrange_title_bar(struct sway_container *con) {
 			width - h_padding - config->titlebar_h_padding);
 		alloc_width = MAX(alloc_width, 0);
 
-		sway_text_node_scale(node, scale);
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
-			h_padding, (height - node->height) >> 1);
+			scale * h_padding, scale * ((height - node->height) >> 1));
+		sway_text_node_scale(node, scale);
 
 		pixman_region32_union_rect(&text_area, &text_area,
-			node->node->x, node->node->y, alloc_width, node->height);
+			node->node->x, node->node->y, scale * alloc_width, scale * node->height);
 	}
 
 	// silence pixman errors

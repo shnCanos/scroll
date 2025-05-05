@@ -306,7 +306,7 @@ void sway_text_node_scale(struct sway_text_node *node, float scale) {
 	struct text_buffer *buffer = wl_container_of(node, buffer, props);
 	buffer->content_scale = scale;
 	sway_scene_buffer_set_dest_size(buffer->buffer_node,
-		buffer->props.width * scale, buffer->props.height * scale);
+		get_text_width(&buffer->props) * scale, buffer->props.height * scale);
 	render_backing_buffer(buffer);
 }
 
