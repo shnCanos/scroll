@@ -533,8 +533,10 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			double movement = fabs(off - child->animation.y0);
 			if (movement > 0.0) {
 				child->animation.yt = linear_scale(child->animation.y0, off, x);
-			} else {
+			} else if (fabs(child->pending.x - child->animation.x0) > 0.0) {
 				child->animation.yt = child->animation.y0 + y * anim_scale * workspace->height;
+			} else {
+				child->animation.yt = child->animation.y0;
 			}
 			sway_scene_node_set_position(&child->scene_tree->node, 0, round(child->animation.yt - workspace->y));
 			double delta = child->pending.content_y - child->current.y;
@@ -580,8 +582,10 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			double movement = fabs(off - child->animation.y0);
 			if (movement > 0.0) {
 				child->animation.yt = linear_scale(child->animation.y0, off, x);
-			} else {
+			} else if (fabs(child->pending.x - child->animation.x0) > 0.0) {
 				child->animation.yt = child->animation.y0 + y * anim_scale * workspace->height;
+			} else {
+				child->animation.yt = child->animation.y0;
 			}
 			sway_scene_node_set_position(&child->scene_tree->node, 0, round(child->animation.yt - workspace->y));
 			sway_scene_node_reparent(&child->scene_tree->node, content);
@@ -597,8 +601,10 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			double movement = fabs(off - child->animation.x0);
 			if (movement > 0.0) {
 				child->animation.xt = linear_scale(child->animation.x0, off, x);
-			} else {
+			} else if (fabs(child->pending.y - child->animation.y0) > 0.0) {
 				child->animation.xt = child->animation.x0 + y * anim_scale * workspace->width;
+			} else {
+				child->animation.xt = child->animation.x0;
 			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
 			sway_scene_node_set_position(&child->scene_tree->node, round(child->animation.xt - workspace->x), 0);
@@ -649,8 +655,10 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			double movement = fabs(off - child->animation.x0);
 			if (movement > 0.0) {
 				child->animation.xt = linear_scale(child->animation.x0, off, x);
-			} else {
+			} else if (fabs(child->pending.y - child->animation.y0) > 0.0) {
 				child->animation.xt = child->animation.x0 + y * anim_scale * workspace->width;
+			} else {
+				child->animation.xt = child->animation.x0;
 			}
 			sway_scene_node_set_position(&child->scene_tree->node, round(child->animation.xt - workspace->x), 0);
 			sway_scene_node_reparent(&child->scene_tree->node, content);
