@@ -81,11 +81,17 @@ static void buffer_set_dest_size_iterator(struct sway_scene_buffer *buffer,
 		int sx, int sy, void *user_data) {
 	float *scale = user_data;
 	struct sway_scene_surface *scene_surface = sway_scene_surface_try_from_buffer(buffer);
-	struct wlr_surface *surface = scene_surface->surface;
-	struct wlr_surface_state *state = &surface->current;
 
-	int width = state->width;
-	int height = state->height;
+	int width, height;
+	if (scene_surface) {
+		struct wlr_surface *surface = scene_surface->surface;
+		struct wlr_surface_state *state = &surface->current;
+		width = state->width;
+		height = state->height;
+	} else {
+		width = buffer->dst_width;
+		height = buffer->dst_height;
+	}
 
 	sway_scene_buffer_set_dest_size(buffer, round(width * *scale), round(height * *scale));
 }
@@ -103,11 +109,11 @@ static void recreate_buffers(struct sway_workspace *workspace) {
 			sway_scene_node_for_each_buffer(&view->content_tree->node,
 				buffer_set_dest_size_iterator, &total_scale);
 			// Views using CSD need to be reconfigured, otherwise the content
-			// is not in sync with our borders
-			if (view->view->using_csd) {
-				view_configure(view->view, view->pending.content_x, view->pending.content_y,
-					view->pending.content_width, view->pending.content_height);
-			}
+			// is not in sync with our borders. Also, some views created while
+			// in scaled mode need to be reconfigured, so reconfigure everything
+			// just in case.
+			view_configure(view->view, view->pending.content_x, view->pending.content_y,
+				view->pending.content_width, view->pending.content_height);
 		}
 	}
 }
