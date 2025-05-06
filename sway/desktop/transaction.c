@@ -290,6 +290,163 @@ static void disable_container(struct sway_container *con) {
 static void arrange_container(struct sway_container *con,
 		double width, double height, bool title_bar, int gaps);
 
+static double get_active_position(struct sway_workspace *workspace,
+		enum sway_container_layout layout, list_t *children, int active_idx,
+		int gaps, float scale) {
+	// We consider all the possible positions where each container is at the
+	// left/top edge and at the right/bottom edge. We choose the one that leaves
+	// the active container inside the viewport, moves the active as little as
+	// possible, and leaves no empty space in the viewport.
+
+	// First, find the range of containers that being on each edge of the viewport,
+	// allow the active one to be seen completely.
+	double best_movement = DBL_MAX;
+	int c_l = 0, c_r = children->length - 1;
+	struct sway_container *active = children->items[active_idx];
+	if (layout == L_HORIZ) {
+		// Add/substract 1 to account for rounding errors due to widths/heights
+		// computed using layout fractions. The extra pixel will be absorbed by
+		// the gaps.
+		const double workspace_beg = workspace->x - 1;
+		const double workspace_end = workspace->x + workspace->width + 1;
+		const double a_x = active->pending.x;
+		// Set the active at the left/top edge and test how many after it
+		// fit within the viewport fully
+		double x1 = workspace->x + scale * gaps;
+		for (int c = active_idx; c < children->length; ++c) {
+			struct sway_container *con = children->items[c];
+			x1 += scale * (con->current.width + gaps);
+			// For those that fit, locate each one at the end of the viewport,
+			// and check the previous ones don't leave any empty space.
+			if (x1 <= workspace_end) {
+				c_r = c;
+				// Test from c_r to the beginning
+				double movement = DBL_MAX;
+				double cx0 = workspace->x + workspace->width;
+				bool space = true;
+				for (int i = c_r; i >= 0; i--) {
+					struct sway_container *con = children->items[i];
+					cx0 -= scale * (con->current.width + 2.0 * gaps);
+					if (i == active_idx) {
+						movement = (cx0 + scale * gaps) - a_x;
+					}
+					if (cx0 <= workspace_beg) {
+						space = false;
+						if (cx0 < workspace_beg) {
+							break;
+						}
+					}
+				}
+				if (!space && fabs(movement) < fabs(best_movement)) {
+					best_movement = movement;
+				}
+			} else {
+				break;
+			}
+		}
+		// Set the active at the right/bottom edge and test how many before it
+		// fit within the viewport fully
+		double x0 = workspace->x + workspace->width - scale * gaps;
+		for (int c = active_idx; c >= 0; --c) {
+			struct sway_container *con = children->items[c];
+			x0 -= scale * (con->current.width + gaps);
+			// For those that fit, locate each one at the beginning of the viewport,
+			// and check the next ones don't leave any empty space.
+			if (x0 >= workspace_beg) {
+				c_l = c;
+				// Test from c_l to the end
+				double movement = DBL_MAX;
+				double cx1 = workspace->x;
+				bool space = true;
+				for (int i = c_l; i < children->length; ++i) {
+					if (i == active_idx) {
+						movement = (cx1 + scale * gaps) - a_x;
+					}
+					struct sway_container *con = children->items[i];
+					cx1 += scale * (con->current.width + 2.0 * gaps);
+					if (cx1 >= workspace_end) {
+						space = false;
+						if (cx1 > workspace_end) {
+							break;
+						}
+					}
+				}
+				if (!space && fabs(movement) < fabs(best_movement)) {
+					best_movement = movement;
+				}
+			} else {
+				break;
+			}
+		}
+		return a_x + best_movement;
+	} else {
+		const double workspace_beg = workspace->y - 1;
+		const double workspace_end = workspace->y + workspace->height + 1;
+		const double a_y = active->pending.y;
+		double y0 = workspace->y + workspace->height - scale * gaps;
+		for (int c = active_idx; c >= 0; --c) {
+			struct sway_container *con = children->items[c];
+			y0 -= scale * (con->current.height + gaps);
+			if (y0 >= workspace_beg) {
+				c_l = c;
+				// Test from c_l to the end
+				double movement = DBL_MAX;
+				double cy1 = workspace->y;
+				bool space = true;
+				for (int i = c_l; i < children->length; ++i) {
+					if (i == active_idx) {
+						movement = (cy1 + scale * gaps) - a_y;
+					}
+					struct sway_container *con = children->items[i];
+					cy1 += scale * (con->current.height + 2.0 * gaps);
+					if (cy1 >= workspace_end) {
+						space = false;
+						if (cy1 > workspace_end) {
+							break;
+						}
+					}
+				}
+				if (!space && fabs(movement) < fabs(best_movement)) {
+					best_movement = movement;
+				}
+			} else {
+				break;
+			}
+		}
+		double y1 = workspace->y + scale * gaps;
+		for (int c = active_idx; c < children->length; ++c) {
+			struct sway_container *con = children->items[c];
+			y1 += scale * (con->current.height + gaps);
+			if (y1 <= workspace_end) {
+				c_r = c;
+				// Test from c_r to the beginning
+				double movement = DBL_MAX;
+				double cy0 = workspace->y + workspace->height;
+				bool space = true;
+				for (int i = c_r; i >= 0; i--) {
+					struct sway_container *con = children->items[i];
+					cy0 -= scale * (con->current.height + 2.0 * gaps);
+					if (i == active_idx) {
+						movement = (cy0 + scale * gaps) - a_y;
+					}
+					if (cy0 <= workspace_beg) {
+						space = false;
+						if (cy0 < workspace_beg) {
+							break;
+						}
+					}
+				}
+				if (!space && fabs(movement) < fabs(best_movement)) {
+					best_movement = movement;
+				}
+			} else {
+				break;
+			}
+		}
+		return a_y + best_movement;
+	}
+}
+
 // Workspace stores in x, y the logical coordinate that will be applied to a node
 // with x, y = 0, and it includes gaps_out. So if we want to place
 // a container on the leftmost possible position, we should use gaps_in, and it will
@@ -324,83 +481,6 @@ static double compute_active_offset(struct sway_workspace *workspace,
             double start = 0.5 * (width - twidth);
             return workspace->x + start + lwidth + scale * gaps;
         }
-
-		double a_x = active->pending.x;
-		double a_w = active->pending.width;
-		if (a_x < workspace->x) {
-			// active starts outside on the left
-			// set it on the left edge
-			return workspace->x + scale * gaps;
-		} else if (a_x + scale * a_w > workspace->x + width) {
-			// active overflows to the right, move to end of viewport
-			return workspace->x + width - scale * (a_w + gaps);
-		} else {
-			// Active is inside the viewport
-			// If Active is the first container, it should be on the left edge,
-			// and if it is the last one, on the right (because we know total
-			// container width is wider than the viewport, otherwise it would have
-			// been centered earlier).
-			if (active_idx == 0) {
-				return workspace->x + scale * gaps;
-			} else if (active_idx == children->length - 1) {
-				return workspace->x + width - scale * (a_w + gaps);
-			}
-			// If any of the windows next to it on its right or left are
-			// in the viewport, keep the current position.
-			struct sway_container *prev = active_idx > 0 ? children->items[active_idx - 1] : NULL;
-			struct sway_container *next = active_idx < children->length - 1 ? children->items[active_idx + 1] : NULL;
-			bool keep_current = false;
-			// Note that previous and next positions may be wrong because we could be moving the active container
-			if (prev) {
-				double prev_x = a_x - scale * (prev->pending.width + 2 * gaps);
-				if (prev_x - scale * gaps >= workspace->x && prev_x + scale * (prev->pending.width + gaps) <= workspace->x + width) {
-					keep_current = true;
-				}
-			}
-			if (!keep_current && next) {
-				double next_x = a_x + scale * (a_w + 2 * gaps);
-				if (next_x - scale * gaps >= workspace->x && next_x + scale * (next->pending.width + gaps) <= workspace->x + width) {
-					keep_current = true;
-				}
-			}
-			if (!keep_current) {
-				// If not:
-				// We try to fit the column next to it on the right if it fits
-				// completely, otherwise the one on the left. If none of them fit,
-				// we leave it as it is.
-				if (next) {
-					if (scale * (a_w + 3 * gaps + next->pending.width) <= width) {
-						// set next at the right edge of the viewport
-						return workspace->x + width - scale * (a_w + 3 * gaps + next->pending.width);
-					} else if (prev) {
-						if (scale * (prev->pending.width + 3 * gaps + a_w) <= width) {
-							// set previous at the left edge of the viewport
-							return workspace->x + scale * (prev->pending.width + 3 * gaps);
-						} else {
-							// none of them fit, leave active as it is
-							return a_x;
-						}
-					} else {
-						// nothing on the left, move active to left edge of viewport
-						return workspace->x + scale * gaps;
-					}
-				} else if (prev) {
-					if (scale * (prev->pending.width + 3 * gaps + a_w) <= width) {
-						// set previous at the left edge of the viewport
-						return workspace->x + scale * (prev->pending.width + 3 * gaps);
-					} else {
-						// it doesn't fit and nothing on the right, move active to right edge of viewport
-						return workspace->x + width - scale * (a_w + gaps);
-					}
-				} else {
-					// nothing on the right or left, the window is in a correct position
-					return a_x;
-				}
-			} else {
-				// the window is in a correct position
-				return a_x;
-			}
-		}
 	} else {
 		bool center = layout_modifiers_get_center_vertical(workspace);
 		if (center) {
@@ -421,84 +501,8 @@ static double compute_active_offset(struct sway_workspace *workspace,
             double start = 0.5 * (height - theight);
             return workspace->y + start + lheight + scale * gaps;
         }
-
-		double a_y = active->pending.y;
-		double a_h = active->pending.height;
-		if (a_y < workspace->y) {
-			// active starts outside on the left
-			// set it on the left edge
-			return workspace->y + scale * gaps;
-		} else if (a_y + scale * a_h > workspace->y + height) {
-			// active overflows to the right, move to end of viewport
-			return workspace->y + height - scale * (a_h + gaps);
-		} else {
-			// Active is inside the viewport
-			// If Active is the first container, it should be on the top edge,
-			// and if it is the last one, on the bottom (because we know total
-			// container height is higher than the viewport, otherwise it would have
-			// been centered earlier).
-			if (active_idx == 0) {
-				return workspace->y + scale * gaps;
-			} else if (active_idx == children->length - 1) {
-				return workspace->y + height - scale * (a_h + gaps);
-			}
-			// If any of the windows next to it on its right or left are
-			// in the viewport, keep the current position.
-			struct sway_container *prev = active_idx > 0 ? children->items[active_idx - 1] : NULL;
-			struct sway_container *next = active_idx < children->length - 1 ? children->items[active_idx + 1] : NULL;
-			bool keep_current = false;
-			// Note that previous and next positions may be wrong because we could be moving the active container
-			if (prev) {
-				double prev_y = a_y - scale * (prev->pending.height + 2 * gaps);
-				if (prev_y - scale * gaps >= workspace->y && prev_y + scale * (prev->pending.height + gaps) <= workspace->y + height) {
-					keep_current = true;
-				}
-			}
-			if (!keep_current && next) {
-				double next_y = a_y + scale * (a_h + 2 * gaps);
-				if (next_y - scale * gaps >= workspace->y && next_y + scale * (next->pending.height + gaps) <= workspace->y + height) {
-					keep_current = true;
-				}
-			}
-			if (!keep_current) {
-				// If not:
-				// We try to fit the column next to it on the right if it fits
-				// completely, otherwise the one on the left. If none of them fit,
-				// we leave it as it is.
-				if (next) {
-					if (scale * (a_h + 3 * gaps + next->pending.height) <= height) {
-						// set next at the right edge of the viewport
-						return workspace->y + height - scale * (a_h + 3 * gaps + next->pending.height);
-					} else if (prev) {
-						if (scale * (prev->pending.height + 3 * gaps + a_h) <= 0.0) {
-							// set previous at the left edge of the viewport
-							return workspace->y + scale * (prev->pending.height + 3 * gaps);
-						} else {
-							// none of them fit, leave active as it is
-							return a_y;
-						}
-					} else {
-						// nothing on the left, move active to left edge of viewport
-						return workspace->y + scale * gaps;
-					}
-				} else if (prev) {
-					if (scale * (prev->pending.height + 3 * gaps + a_h) <= height) {
-						// set previous at the left edge of the viewport
-						return workspace->y + scale * (prev->pending.height + 3 * gaps);
-					} else {
-						// it doesn't fit and nothing on the right, move active to right edge of viewport
-						return workspace->y + height - scale * (a_h + gaps);
-					}
-				} else {
-					// nothing on the right or left, the window is in a correct position
-					return a_y;
-				}
-			} else {
-				// the window is in a correct position
-				return a_y;
-			}
-		}
 	}
+	return get_active_position(workspace, layout, children, active_idx, gaps, scale);
 }
 
 static void arrange_children(enum sway_container_layout layout, list_t *children,
