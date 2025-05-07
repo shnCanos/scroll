@@ -25,6 +25,7 @@
 #include "pango.h"
 #include "log.h"
 #include "stringop.h"
+#include "util.h"
 
 static void handle_output_enter(
 		struct wl_listener *listener, void *data) {
@@ -419,7 +420,7 @@ void container_arrange_title_bar(struct sway_container *con) {
 
 	pixman_region32_t background, border;
 
-	int thickness = config->titlebar_border_thickness;
+	int thickness = max(1, round(scale * config->titlebar_border_thickness));
 	pixman_region32_init_rect(&background,
 		thickness, thickness,
 		round(scale * width) - thickness * 2, round(scale * height) - thickness * 2);
