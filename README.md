@@ -536,8 +536,10 @@ possible jump labels.
 
 ### General Options
 
-`fullscreen_movefocus`: default is `true`. If `true`, changind focus while in
-full screen mode will keep full screen status for the new window.
+`fullscreen_movefocus`: default is `true`. If `true`, changing focus while in
+full screen mode will keep full screen status for the new window. You can use
+overview/jump while in full screen mode to move to other window, making it
+full screen too.
 
 
 ### Gesture Options

@@ -126,7 +126,8 @@ The following commands may only be used in the configuration file.
 
 *fullscreen_movefocus* <true|false>
 	Default value is _true_. Allows you to change focus while in full screen
-	mode. Full screen will follow focus.
+	mode. Full screen will follow focus. You can still use overview/jump to
+	select a new window, and full screen state will follow.
 
 *gesture_scroll_enable* <true|false>
 	Default value is _true_. Enables trackpad layout scrolling.
