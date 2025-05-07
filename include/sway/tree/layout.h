@@ -63,6 +63,7 @@ struct sway_scroller {
 
 	bool overview;
 	float mem_scale; // Stores the current workspace scale when calling overview, so it can be restored later
+	struct sway_container *fullscreen;  // stores the full screen container when calling overview, so it can be restored later
 };
 
 // Global functions

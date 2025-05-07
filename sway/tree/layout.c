@@ -150,10 +150,26 @@ void layout_overview_toggle(struct sway_workspace *workspace) {
 		workspace->layers.tiling->node.scale = workspace->layout.mem_scale;
 		node_set_dirty(&workspace->node);
 		recreate_buffers(workspace);
+		if (workspace->layout.fullscreen) {
+			struct sway_seat *seat = input_manager_current_seat();
+			struct sway_container * focus = seat_get_focused_container(seat);
+			container_set_fullscreen(focus, FULLSCREEN_WORKSPACE);
+			arrange_root();
+		}
 	} else {
 		workspace->layout.mem_scale = layout_scale_get(workspace);
 		workspace->layout.overview = true;
+		workspace->layout.fullscreen = workspace->fullscreen;
 		node_set_dirty(&workspace->node);
+		if (workspace->fullscreen) {
+			container_set_fullscreen(workspace->fullscreen, FULLSCREEN_NONE);
+			arrange_root();
+		}
+		// In case the next transaction_commit_dirty() is delayed, making 
+		// the overview scale invalid until then, we precompute the overview
+		// scale here to avoid problems. For example, in jump mode,
+		// container_toggle_jump_decoration() needs the correct scale.
+		layout_overview_recompute_scale(workspace, workspace->gaps_inner);
 	}
 	ipc_event_scroller("overview", workspace);
 }
@@ -1089,10 +1105,7 @@ static void jump_handle_keyboard_key(struct sway_keyboard *keyboard,
 				container_toggle_jump_decoration(view, NULL);
 			}
 		}
-		// Restore original view
-		layout_overview_toggle(workspace);
 	}
-	transaction_commit_dirty();
 
 	if (focus) {
 		uint32_t n = 0;
@@ -1114,6 +1127,11 @@ static void jump_handle_keyboard_key(struct sway_keyboard *keyboard,
 	}
 
 cleanup:
+	for (int w = 0; w < jump_data->workspaces->length; ++w) {
+		struct sway_workspace *workspace = jump_data->workspaces->items[w];
+		// Restore original view
+		layout_overview_toggle(workspace);
+	}
 	list_free(jump_data->workspaces);
 	free(jump_data);
 	transaction_commit_dirty();

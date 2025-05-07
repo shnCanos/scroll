@@ -618,9 +618,15 @@ static bool should_focus(struct sway_view *view) {
 		return true;
 	}
 
-	// View opened "under" fullscreen view should not be given focus.
-	if (root->fullscreen_global || !map_ws || map_ws->fullscreen) {
+	// View opened "under" global fullscreen view should not be given focus.
+	if (root->fullscreen_global || !map_ws) {
 		return false;
+	}
+
+	// View opened "under" fullscreen view should not be given focus unless
+	// fullscreen_movefocus is set.
+	if (map_ws->fullscreen) {
+		return config->fullscreen_movefocus ? true : false;
 	}
 
 	// Views can only take focus if they are mapped into the active workspace
@@ -848,6 +854,10 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 	}
 
 	view_execute_criteria(view);
+
+	if (!fullscreen && ws && ws->fullscreen && config->fullscreen_movefocus) {
+		container_pass_fullscreen(ws->fullscreen, view->container);
+	}
 
 	bool set_focus = should_focus(view);
 	if (ws && set_focus && !container_is_floating(container)) {

@@ -61,6 +61,7 @@ enum sway_scene_node_type {
 struct sway_scene_node {
 	enum sway_scene_node_type type;
 	struct sway_scene_tree *parent;
+	struct sway_scene_tree *old_parent;  // for full screen focusing
 
 	struct wl_list link; // sway_scene_tree.children
 

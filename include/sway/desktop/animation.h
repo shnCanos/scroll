@@ -9,6 +9,7 @@
  */
 
 enum sway_animation_mode {
+	ANIM_DISABLED,
 	ANIM_DEFAULT,
 	ANIM_WINDOW_OPEN,
 	ANIM_WINDOW_MOVE,

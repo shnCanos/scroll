@@ -1381,6 +1381,41 @@ void container_set_fullscreen(struct sway_container *con,
 	}
 }
 
+void container_pass_fullscreen(struct sway_container *src, struct sway_container *dst) {
+	if (src->pending.fullscreen_mode == dst->pending.fullscreen_mode) {
+		return;
+	}
+	enum sway_fullscreen_mode mode = src->pending.fullscreen_mode;
+
+	switch (mode) {
+	case FULLSCREEN_NONE:
+		container_fullscreen_disable(dst);
+		break;
+	case FULLSCREEN_WORKSPACE:
+		if (root->fullscreen_global) {
+			container_fullscreen_disable(root->fullscreen_global);
+		}
+		if (src->pending.workspace && src->pending.workspace->fullscreen) {
+			container_fullscreen_disable(src->pending.workspace->fullscreen);
+		}
+		arrange_root();
+		container_fullscreen_workspace(dst);
+		arrange_root();
+		break;
+	case FULLSCREEN_GLOBAL:
+		if (root->fullscreen_global) {
+			container_fullscreen_disable(root->fullscreen_global);
+		}
+		if (src->pending.fullscreen_mode == FULLSCREEN_WORKSPACE) {
+			container_fullscreen_disable(src);
+		}
+		arrange_root();
+		container_fullscreen_global(dst);
+		arrange_root();
+		break;
+	}
+}
+
 struct sway_container *container_toplevel_ancestor(
 		struct sway_container *container) {
 	while (container->pending.parent) {

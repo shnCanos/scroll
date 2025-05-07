@@ -274,6 +274,12 @@ void container_set_fullscreen(struct sway_container *con,
 void container_fullscreen_disable(struct sway_container *con);
 
 /**
+ * Pass the src container's full screen mode to dst. Use when changing focus
+ * and want to keep full screen mode (fullscreen_movefocus option)
+ */
+void container_pass_fullscreen(struct sway_container *src, struct sway_container *dst);
+
+/**
  * Walk up the container tree branch starting at the given container, and return
  * its earliest ancestor.
  */

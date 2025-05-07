@@ -149,6 +149,7 @@ static uint32_t animation_get_duration_ms() {
 		return animation_curve_get_duration_ms(config->animations.window_move);
 	case ANIM_WINDOW_SIZE:
 		return animation_curve_get_duration_ms(config->animations.window_size);
+	case ANIM_DISABLED:
 	default:
 		return 0;
 	}
@@ -213,6 +214,7 @@ bool animation_enabled() {
 		return animation_curve_enabled(config->animations.window_move);
 	case ANIM_WINDOW_SIZE:
 		return animation_curve_enabled(config->animations.window_size);
+	case ANIM_DISABLED:
 	default:
 		return false;
 	}
