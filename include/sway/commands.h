@@ -157,6 +157,7 @@ sway_cmd cmd_kill;
 sway_cmd cmd_layout_default_height;
 sway_cmd cmd_layout_default_width;
 sway_cmd cmd_layout_heights;
+sway_cmd cmd_layout_transpose;
 sway_cmd cmd_layout_widths;
 sway_cmd cmd_log_colors;
 sway_cmd cmd_mark;

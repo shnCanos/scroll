@@ -319,6 +319,14 @@ set|plus|minus|toggle <amount>
 	no change of focus. There are several options to modify the look and
 	content of the labels.
 
+*layout_transpose*
+	Allows you to change from one type of layout to the other at runtime. For
+	example, you want to move your current workspace from a landscape monitor
+	to one in portrait mode: *move* the workspace, and then call
+	*layout_transpose*; it will change your existing layout from a row of
+	columns to a column of rows, keeping all your windows in the same relative
+	positions. You can undo it by calling *layout_transpose* again.
+
 *max_render_time* off|<msec>
 	Controls when the relevant application is told to render this window, as a
 	positive number of milliseconds before the next time scroll composites the

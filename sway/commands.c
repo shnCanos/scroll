@@ -138,6 +138,7 @@ static const struct cmd_handler command_handlers[] = {
 	{ "inhibit_idle", cmd_inhibit_idle },
 	{ "jump", cmd_jump },
 	{ "kill", cmd_kill },
+	{ "layout_transpose", cmd_layout_transpose },
 	{ "mark", cmd_mark },
 	{ "max_render_time", cmd_max_render_time },
 	{ "move", cmd_move },

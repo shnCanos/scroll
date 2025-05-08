@@ -111,6 +111,13 @@ The *horizontal* layout will create columns of windows, and the "vertical"
 layout will create rows of windows. You can still add any number of columns or
 rows, and any number of windows to each row/column.
 
+The command `layout_transpose` allows you to change from one type of layout to
+the other at runtime. For example, you want to move your current workspace
+from a landscape monitor to one in portrait mode: `move` the workspace and then
+call `layout_transpose`; it will change your existing layout from a row of
+columns to a column of rows, keeping all your windows in the same relative
+positions. You can undo it by calling `layout_transpose` again.
+
 ### Modes
 
 You can set the mode with the `set_mode <h|v>` command. *scroll* works in any
