@@ -212,6 +212,9 @@ fullscreen_movefocus true
 
     # Toggle the current focus between tiling and floating mode
     bindsym $mod+y focus mode_toggle
+    # Toggle layout type (h<->v)
+    bindsym $mod+Shift+y layout_transpose
+
     # Float a window
     bindsym $mod+Shift+f floating toggle
 
@@ -235,6 +238,8 @@ fullscreen_movefocus true
     # Show the next scratchpad window or hide the focused scratchpad window.
     # If there are multiple scratchpad windows, this command cycles through them.
     bindsym $mod+z scratchpad show
+
+    bindsym $mod+Ctrl+z workspace back_and_forth
 
 #
 # Mode modifiers
