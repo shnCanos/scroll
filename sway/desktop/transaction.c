@@ -290,6 +290,149 @@ static void disable_container(struct sway_container *con) {
 static void arrange_container(struct sway_container *con,
 		double width, double height, bool title_bar, int gaps);
 
+static double get_active_position_pin(struct sway_workspace *workspace,
+		enum sway_container_layout layout, list_t *children, int active_idx,
+		int gaps, float scale, struct sway_container *pin) {
+	// We consider all the possible positions where each container is next to
+	// the pin. We choose the one that shows the active container and makes it
+	// move as little as possible.
+	struct sway_container *active = children->items[active_idx];
+	int pin_idx = list_find(children, pin);
+	if (layout == L_HORIZ) {
+		// Add/substract 1 to account for rounding errors due to widths/heights
+		// computed using layout fractions. The extra pixel will be absorbed by
+		// the gaps.
+		const double workspace_beg = workspace->x - 1;
+		const double workspace_end = workspace->x + workspace->width + 1;
+		const double a_x = active->pending.x;
+		if (layout_pin_get_position(workspace) == PIN_BEGINNING) {
+			if (active == pin) {
+				return workspace->x + scale * gaps;
+			}
+			// Set the active to the right of the pin, and test how many before it
+			// fit while keeping the active inside of the viewport. Choose the one
+			// that moves the active column the least.
+			double cx0 = workspace->x + scale * (pin->pending.width + 2.0 * gaps);
+			int c = active_idx;
+			double best_movement = cx0 + scale * gaps - a_x;
+			const double caw = scale * (active->pending.width + 2.0 * gaps);
+			for (int i = active_idx - 1; i >= 0; i--) {
+				struct sway_container *con = children->items[i];
+				if (con != pin) {
+					double cw = scale * (con->current.width +  2.0 * gaps);
+					cx0 += cw;
+					if (cx0 + caw > workspace_end) {
+						break;
+					}
+					const double a_x0 = cx0 + scale * gaps;
+					if (fabs(a_x0 - a_x) < fabs(best_movement)) {
+						best_movement = a_x0 - a_x;
+						c = i;
+					}
+				}
+			}
+			if (pin_idx >= c) {
+				list_move_to(children, c, pin);
+			} else {
+				list_move_to(children, c - 1, pin);
+			}
+			return best_movement + a_x;
+		} else {
+			if (active == pin) {
+				return workspace->x + workspace->width - scale * (pin->pending.width + gaps);
+			}
+			double cx1 = workspace->x + workspace->width - scale * (pin->pending.width + 2.0 * gaps);
+			int c = active_idx;
+			const double caw = scale * (active->pending.width + 2.0 * gaps);
+			double best_movement = cx1 - caw + scale * gaps - a_x;
+			for (int i = active_idx + 1; i < children->length; ++i) {
+				struct sway_container *con = children->items[i];
+				if (con != pin) {
+					double cw = scale * (con->current.width +  2.0 * gaps);
+					cx1 -= cw;
+					if (cx1 - caw < workspace_beg) {
+						break;
+					}
+					const double a_x0 = cx1 - caw + scale * gaps;
+					if (fabs(a_x0 - a_x) < fabs(best_movement)) {
+						best_movement = a_x0 - a_x;
+						c = i;
+					}
+				}
+			}
+			if (pin_idx >= c) {
+				list_move_to(children, c + 1, pin);
+			} else {
+				list_move_to(children, c, pin);
+			}
+			return best_movement + a_x;
+		}
+	} else {
+		const double workspace_beg = workspace->y - 1;
+		const double workspace_end = workspace->y + workspace->height + 1;
+		const double a_y = active->pending.y;
+		if (layout_pin_get_position(workspace) == PIN_BEGINNING) {
+			if (active == pin) {
+				return workspace->y + scale * gaps;
+			}
+			double cy0 = workspace->y + scale * (pin->pending.height + 2.0 * gaps);
+			int c = active_idx;
+			double best_movement = cy0 + scale * gaps - a_y;
+			const double cah = scale * (active->pending.height + 2.0 * gaps);
+			for (int i = active_idx - 1; i >= 0; i--) {
+				struct sway_container *con = children->items[i];
+				if (con != pin) {
+					double ch = scale * (con->current.height +  2.0 * gaps);
+					cy0 += ch;
+					if (cy0 + cah > workspace_end) {
+						break;
+					}
+					const double a_y0 = cy0 + scale * gaps;
+					if (fabs(a_y0 - a_y) < fabs(best_movement)) {
+						best_movement = a_y0 - a_y;
+						c = i;
+					}
+				}
+			}
+			if (pin_idx >= c) {
+				list_move_to(children, c, pin);
+			} else {
+				list_move_to(children, c - 1, pin);
+			}
+			return best_movement + a_y;
+		} else {
+			if (active == pin) {
+				return workspace->y + workspace->height - scale * (pin->pending.height + gaps);
+			}
+			double cy1 = workspace->y + workspace->height - scale * (pin->pending.height + 2.0 * gaps);
+			int c = active_idx;
+			const double cah = scale * (active->pending.height + 2.0 * gaps);
+			double best_movement = cy1 - cah + scale * gaps - a_y;
+			for (int i = active_idx + 1; i < children->length; ++i) {
+				struct sway_container *con = children->items[i];
+				if (con != pin) {
+					double ch = scale * (con->current.height +  2.0 * gaps);
+					cy1 -= ch;
+					if (cy1 - cah < workspace_beg) {
+						break;
+					}
+					const double a_y0 = cy1 - cah + scale * gaps;
+					if (fabs(a_y0 - a_y) < fabs(best_movement)) {
+						best_movement = a_y0 - a_y;
+						c = i;
+					}
+				}
+			}
+			if (pin_idx >= c) {
+				list_move_to(children, c + 1, pin);
+			} else {
+				list_move_to(children, c, pin);
+			}
+			return best_movement + a_y;
+		}
+	}
+}
+
 static double get_active_position(struct sway_workspace *workspace,
 		enum sway_container_layout layout, list_t *children, int active_idx,
 		int gaps, float scale) {
@@ -454,8 +597,8 @@ static double get_active_position(struct sway_workspace *workspace,
 // and height, and they are the effective, available space: viewport resolution
 // minus 2 * gaps_out.
 static double compute_active_offset(struct sway_workspace *workspace,
-		enum sway_container_layout layout, list_t *children,
-		int active_idx, int width, int height, int gaps) {
+		enum sway_container_layout layout, list_t *children, int active_idx,
+		int width, int height, int gaps, struct sway_container *pin) {
 	struct sway_container *active = children->items[active_idx];
 	// Offsets may be wrong, so consider only the active position and all the
 	// widths and order are valid. Also, when the workspace is scaled, offsets
@@ -502,7 +645,11 @@ static double compute_active_offset(struct sway_workspace *workspace,
             return workspace->y + start + lheight + scale * gaps;
         }
 	}
-	return get_active_position(workspace, layout, children, active_idx, gaps, scale);
+	if (pin) {
+		return get_active_position_pin(workspace, layout, children, active_idx, gaps, scale, pin);
+	} else {
+		return get_active_position(workspace, layout, children, active_idx, gaps, scale);
+	}
 }
 
 static void arrange_children(enum sway_container_layout layout, list_t *children,
@@ -520,12 +667,27 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 	}
 	struct sway_workspace *workspace = active->pending.workspace;
 	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+
+	struct sway_container *pin = layout_pin_enabled(workspace) ?
+		layout_pin_get_container(workspace) : NULL;
+	if (layout != layout_get_type(workspace)) {
+		pin = NULL;
+	}
+
 	double offset;
 	if (workspace->gesture.scrolling || layout_modifiers_get_reorder(workspace) == REORDER_LAZY) {
 		offset = layout == L_HORIZ ? active->pending.x : active->pending.y;
 	} else {
 		offset = compute_active_offset(workspace, layout, children, active_idx,
-			workspace->width, workspace->height, gaps);
+			workspace->width, workspace->height, gaps, pin);
+	}
+	if (pin) {
+		// active may have moved because of pin, recompute
+		active_idx = list_find(children, active);
+		if (active_idx == -1) {
+			active_idx = 0;
+		}
+		active = children->items[active_idx];
 	}
 
 	double t, x, y, anim_scale;

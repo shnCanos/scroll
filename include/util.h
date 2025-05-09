@@ -132,6 +132,11 @@ list_t *copy_double_list(list_t *src);
  */
 int max(int a, int b);
 
+/**
+ * min of two integers
+ */
+int min(int a, int b);
+
 /*
  * linear scale between two values
  */

@@ -49,6 +49,11 @@ enum sway_layout_insert {
 	INSERT_END
 };
 
+enum sway_layout_pin {
+	PIN_BEGINNING,
+	PIN_END
+};
+
 struct sway_scroller {
 	enum sway_container_layout type;
 
@@ -64,6 +69,11 @@ struct sway_scroller {
 	bool overview;
 	float mem_scale; // Stores the current workspace scale when calling overview, so it can be restored later
 	struct sway_container *fullscreen;  // stores the full screen container when calling overview, so it can be restored later
+
+	struct {
+		struct sway_container *container;
+		enum sway_layout_pin pos;
+	} pin;
 };
 
 // Global functions
@@ -129,5 +139,18 @@ void layout_scroll_begin(struct sway_seat *seat);
 void layout_scroll_update(struct sway_seat *seat, double dx, double dy);
 // Finish scrolling swipe and return true if scrolling, else false
 bool layout_scroll_end(struct sway_seat *seat);
+
+// Pin
+
+// Returns true if a pin is enabled for the workspace. Instead of chasing the pinned
+// container to make sure the pin is valid (view unmapped, container changing
+// workspace etc.), we verify the pin is still valid using this function in the
+// very few places we need to check.
+bool layout_pin_enabled(struct sway_workspace *workspace);
+void layout_pin_set(struct sway_workspace *workspace, struct sway_container *container, enum sway_layout_pin pos);
+// Remove a pin if it exists for the container, otherwise do nothing
+void layout_pin_remove(struct sway_workspace *workspace, struct sway_container *container);
+struct sway_container *layout_pin_get_container(struct sway_workspace *workspace);
+enum sway_layout_pin layout_pin_get_position(struct sway_workspace *workspace);
 
 #endif // _SWAY_LAYOUT_H

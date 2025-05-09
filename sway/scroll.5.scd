@@ -446,6 +446,25 @@ set|plus|minus|toggle <amount>
 	A no operation command that can be used to override default behaviour. The
 	optional comment argument is ignored, but logged for debugging purposes.
 
+*pin* top-level container to <beginning|end>
+	Pins a tiled top level container to either edge of the workspace. This may
+	be useful when you have a very wide monitor, or you want to keep a column
+	visible at all times. You may want to have some documentation or terminal
+	always visible.
+
+	It will *pin* the active top level container. For horizontal layouts, it
+	will pin it to the left (_beginning_) or right (_end_) edge of the monitor.
+	For	vertical layouts, to the top (_beginning_) or bottom (_end_) edge.
+	*pin* works as a toggle, and there can only be one pin per workspace. The
+	logic is as follows when you call *pin*:
+
+	1. If the current container is already pinned: if you call *pin* with the
+	same argument of the current pin, it will be unset and the container freed
+	from its pin. If the argument is different, it will move the pinned
+	container to the other position.
+	2. If the current container is not pinned yet: it will replace the pinned
+	container, if any.
+
 *reload*
 	Reloads the scroll config file and applies any changes. The config file is
 	located at path specified by the command line arguments when started,

@@ -219,7 +219,10 @@ fullscreen_movefocus true
     bindsym $mod+Shift+f floating toggle
 
     # Toggle sticky
-    bindsym $mod+a sticky toggle
+    bindsym $mod+Shift+Ctrl+a sticky toggle
+    # Toggle pin
+    bindsym --no-repeat $mod+a pin beginning
+    bindsym --no-repeat $mod+Shift+a pin end
 
     # Marks
     # bindsym $mod+m exec scroll-mark-toggle.sh

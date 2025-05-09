@@ -403,6 +403,30 @@ animations {
 ```
 
 
+### Pins
+
+*scroll* supports *pinning* a tiled top level container to either edge of the
+workspace. This may be useful when you have a very wide monitor, or you want
+to keep a column visible at all times. You may want to have some documentation
+or terminal always visible.
+
+The command is `pin <beginning|end>`.
+
+It will *pin* the active top level container. For horizontal layouts, it will
+pin it to the left (`beginning`) or right (`end`) edge of the monitor. For
+vertical layouts, to the top (`beginning`) or bottom (`end`) edge.
+
+`pin` works as a toggle, and there can only be one pin per workspace. The
+logic is as follows when you call `pin`:
+
+1. If the current container is already pinned: if you call `pin` with the same
+   argument of the current pin, it will be unset and the container freed from
+   its pin. If the argument is different, it will move the pinned container to
+   the other position.
+2. If the current container is not pinned yet: it will replace the pinned
+   container, if any.
+
+
 ### Tips for Using Marks
 
 *scroll* supports sway's mark based navigation. I use these scripts and

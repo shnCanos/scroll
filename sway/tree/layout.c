@@ -288,6 +288,32 @@ static int layout_insert_compute_index(list_t *list, void *active, enum sway_lay
 	}
 }
 
+// Try to set the new container in an approximate position where it will
+// not remove the old active from view if they are neighbors.
+static void position_new_container(struct sway_workspace *workspace,
+		list_t *children, struct sway_container *active,
+		struct sway_container *container, int container_idx) {
+
+	int active_idx = list_find(children, active);
+	if (active_idx >= 0) {
+		if (layout_modifiers_get_mode(workspace) == L_HORIZ) {
+			if (container_idx < active_idx) {
+				double width = container->width_fraction * workspace->width;
+				container->pending.x = active->pending.x - width;
+			} else {
+				container->pending.x = active->pending.x + active->current.width;
+			}
+		} else {
+			if (container_idx < active_idx) {
+				double height = container->height_fraction * workspace->height;
+				container->pending.y = active->pending.y - height;
+			} else {
+				container->pending.y = active->pending.y + active->current.height;
+			}
+		}
+	}
+}
+
 static void layout_container_add_view(struct sway_container *active, struct sway_container *view,
 			enum sway_container_layout layout, enum sway_layout_insert pos) {
 	struct sway_container *parent = active->pending.parent ? active->pending.parent : active;
@@ -296,6 +322,10 @@ static void layout_container_add_view(struct sway_container *active, struct sway
 	container_insert_child(parent, view, index);
 	view->width_fraction = parent->width_fraction;
 	view->height_fraction = parent->height_fraction;
+	if (ref) {
+		position_new_container(parent->pending.workspace, parent->pending.children,
+			ref, view, index);
+	}
 }
 
 // Wraps a view container into a container with layout, and returns it.
@@ -354,6 +384,11 @@ static void layout_workspace_add_view(struct sway_workspace *workspace, struct s
 	parent->height_fraction = view->height_fraction;
 	// Insert the container
 	workspace_insert_tiling_direct(workspace, parent, idx);
+
+	if (active) {
+		position_new_container(workspace, workspace->tiling,
+			active->pending.parent ? active->pending.parent : active, parent, idx);
+	}
 }
 
 // Layout API
@@ -1432,3 +1467,56 @@ bool layout_scroll_end(struct sway_seat *seat) {
 	transaction_commit_dirty();
 	return true;
 }
+
+bool layout_pin_enabled(struct sway_workspace *workspace) {
+	if (!workspace->layout.pin.container) {
+		return false;
+	}
+	// Check the pinned container still exists in the workspace
+	for (int i = 0; i < workspace->tiling->length; ++i) {
+		struct sway_container *con = workspace->tiling->items[i];
+		if (workspace->layout.pin.container == con) {
+			return true;
+		}
+	}
+	workspace->layout.pin.container = NULL;
+	return false;
+}
+
+void layout_pin_set(struct sway_workspace *workspace, struct sway_container *container,
+		enum sway_layout_pin pos) {
+	if (container->pending.parent) {
+		// We pin top level containers
+		container = container->pending.parent;
+	}
+
+	// Toggling logic
+	if (workspace->layout.pin.container == container) {
+		if (workspace->layout.pin.pos == pos) {
+			// Toggling to unpin
+			workspace->layout.pin.container = NULL;
+		} else {
+			// Moving to new position
+			workspace->layout.pin.pos = pos;
+		}
+	} else {
+		workspace->layout.pin.container = container;
+		workspace->layout.pin.pos = pos;
+	}
+	arrange_workspace(workspace);
+}
+
+void layout_pin_remove(struct sway_workspace *workspace, struct sway_container *container) {
+	if (workspace->layout.pin.container == container) {
+		workspace->layout.pin.container = NULL;
+	}
+}
+
+struct sway_container *layout_pin_get_container(struct sway_workspace *workspace) {
+	return workspace->layout.pin.container;
+}
+
+enum sway_layout_pin layout_pin_get_position(struct sway_workspace *workspace) {
+	return workspace->layout.pin.pos;
+}
+

@@ -144,6 +144,7 @@ static const struct cmd_handler command_handlers[] = {
 	{ "move", cmd_move },
 	{ "nop", cmd_nop },
 	{ "opacity", cmd_opacity },
+	{ "pin", cmd_pin },
 	{ "reload", cmd_reload },
 	{ "rename", cmd_rename },
 	{ "resize", cmd_resize },
