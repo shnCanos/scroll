@@ -1228,6 +1228,16 @@ void layout_jump() {
 static struct sway_container *get_mouse_container(struct sway_seat *seat) {
 	struct sway_workspace *workspace = seat->workspace;
 	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+
+	// If there is a pinned container, check it before anything else
+	struct sway_container *pin = workspace->gesture.pin;
+	if (workspace->gesture.pin) {
+		if (seat->cursor->cursor->x >= pin->pending.x - scale * workspace->gaps_inner &&
+			seat->cursor->cursor->x < pin->pending.x + scale * (pin->pending.width + workspace->gaps_inner)) {
+			return pin;
+		}
+	}
+
 	struct sway_container *container = workspace->current.focused_inactive_child;
 	enum sway_container_layout layout = layout_get_type(workspace);
 	int active_idx = list_find(workspace->tiling, container);
@@ -1298,12 +1308,14 @@ static void scroll_container(struct sway_container *container, double dx, double
 		list_t *children = container->pending.children;
 		for (int i = 0; i < children->length; ++i) {
 			struct sway_container *con = children->items[i];
+			con->current.x += dx;
 			con->pending.x += dx;
 		}
 	} else {
 		list_t *children = container->pending.children;
 		for (int i = 0; i < children->length; ++i) {
 			struct sway_container *con = children->items[i];
+			con->current.y += dy;
 			con->pending.y += dy;
 		}
 	}
@@ -1311,11 +1323,160 @@ static void scroll_container(struct sway_container *container, double dx, double
 	transaction_commit_dirty();
 }
 
+static void layout_scroll_float_pinned_container(struct sway_workspace *workspace) {
+	struct sway_container *pin = workspace->gesture.pin;
+	int pidx = list_find(workspace->tiling, pin);
+	if (pidx < 0) {
+		return;
+	}
+	// Move windows that are outside of the viewport on the pin side to be
+	// adjacent to the rest
+	enum sway_layout_pin pos = workspace->gesture.pin_position;
+	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+	enum sway_container_layout layout = layout_get_type(workspace);
+	if (layout == L_HORIZ) {
+		const double move = scale * (2.0 * workspace->gaps_inner + pin->pending.width);
+		if (pos == PIN_BEGINNING) {
+			for (int i = 0; i < pidx; i++) {
+				struct sway_container *con = workspace->tiling->items[i];
+				con->pending.x += move;
+			}
+		} else {
+			for (int i = pidx + 1; i < workspace->tiling->length; i++) {
+				struct sway_container *con = workspace->tiling->items[i];
+				con->pending.x -= move;
+			}
+		}
+	} else {
+		const double move = scale * (2.0 * workspace->gaps_inner + pin->pending.height);
+		if (pos == PIN_BEGINNING) {
+			for (int i = 0; i < pidx; i++) {
+				struct sway_container *con = workspace->tiling->items[i];
+				con->pending.y += move;
+			}
+		} else {
+			for (int i = pidx + 1; i < workspace->tiling->length; i++) {
+				struct sway_container *con = workspace->tiling->items[i];
+				con->pending.y -= move;
+			}
+		}
+	}
+	// Float the pin
+	list_del(workspace->tiling, pidx);
+	list_add(workspace->floating, pin);
+	node_set_dirty(&workspace->node);
+	//node_set_dirty(&pin->node);
+	transaction_commit_dirty();
+}
+
+static void layout_scroll_unfloat_pinned_container(struct sway_workspace *workspace) {
+	struct sway_container *pin = workspace->gesture.pin;
+	int fidx = list_find(workspace->floating, pin);
+	if (fidx < 0) {
+		return;
+	}
+	enum sway_layout_pin pos = workspace->gesture.pin_position;
+	enum sway_container_layout layout = layout_get_type(workspace);
+	struct sway_seat *seat = input_manager_current_seat();
+	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+	// There will be one container that overlaps the inner edge of the pin.
+	// That container's center point will give the future location of the
+	// container with respect to the pin.
+	bool inserted = false;
+	if (layout == L_HORIZ) {
+		const double px0 = pin->pending.x;
+		const double px1 = pin->pending.x + scale * pin->pending.width;
+		const double p = pos == PIN_BEGINNING ? px1 : px0;
+		for (int i = 0; i < workspace->tiling->length; ++i) {
+			struct sway_container *con = workspace->tiling->items[i];
+			const double cx1 = con->pending.x + scale * con->pending.width;
+			const double cm = con->pending.x + 0.5 * scale * con->pending.width;
+			if (cx1 > p) {
+				if (cm > p) {
+					list_insert(workspace->tiling, i, pin);
+					seat_set_focus_container(seat, pos == PIN_BEGINNING ? con : pin);
+				} else {
+					list_insert(workspace->tiling, i + 1, pin);
+					seat_set_focus_container(seat, pos == PIN_BEGINNING ? pin : con);
+				}
+				inserted = true;
+				break;
+			}
+		}
+	} else {
+		const double py0 = pin->pending.y;
+		const double py1 = pin->pending.y + pin->pending.height;
+		const double p = pos == PIN_BEGINNING ? py1 : py0;
+		for (int i = 0; i < workspace->tiling->length; ++i) {
+			struct sway_container *con = workspace->tiling->items[i];
+			const double cy1 = con->pending.y + con->pending.height;
+			const double cm = con->pending.y + 0.5 * con->pending.height;
+			if (cy1 > p) {
+				if (cm > p) {
+					list_insert(workspace->tiling, i, pin);
+					seat_set_focus_container(seat, pos == PIN_BEGINNING ? con : pin);
+				} else {
+					list_insert(workspace->tiling, i + 1, pin);
+					seat_set_focus_container(seat, pos == PIN_BEGINNING ? pin : con);
+				}
+				inserted = true;
+				break;
+			}
+		}
+	}
+	if (!inserted) {
+		list_add(workspace->tiling, pin);
+		seat_set_focus_container(seat, pin);
+	}
+	list_del(workspace->floating, fidx);
+	layout_pin_set(workspace, pin, pos);
+	node_set_dirty(&workspace->node);
+	node_set_dirty(&pin->node);
+	transaction_commit_dirty();
+	workspace->gesture.scrolling = false;
+}
+
 // Gestures
-void layout_scroll_begin(struct sway_seat *seat) {
-	seat->workspace->gesture.scrolling = true;
-	seat->workspace->gesture.dx = 0.0;
-	seat->workspace->gesture.dy = 0.0;
+bool layout_scroll_begin(struct sway_seat *seat) {
+	struct sway_workspace *workspace = seat->workspace;
+	// Check if we can scroll
+	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
+	double total_width = 0.0, max_height = 0.0;
+	const int gap = workspace->gaps_inner;
+	for (int i = 0; i < workspace->tiling->length; ++i) {
+		struct sway_container *con = workspace->tiling->items[i];
+		total_width += scale * (con->pending.width + 2.0 * gap);
+		double total_height = 0.0;
+		for (int j = 0; j < con->pending.children->length; ++j) {
+			struct sway_container *child = con->pending.children->items[j];
+			total_height += scale * (child->pending.height + 2.0 * gap);
+		}
+		if (total_height > max_height) {
+			max_height = total_height;
+		}
+	}
+	bool can_scroll_x = total_width > workspace->width;
+	bool can_scroll_y = max_height > workspace->height;
+	if (!can_scroll_x && !can_scroll_y) {
+		return false;
+	}
+
+	workspace->gesture.scrolling = true;
+	workspace->gesture.dx = 0.0;
+	workspace->gesture.dy = 0.0;
+
+	// If there is a pinned container, float it.
+	struct sway_container *pin = layout_pin_enabled(workspace) ? layout_pin_get_container(workspace) : NULL;
+	workspace->gesture.pin = pin;
+	enum sway_container_layout layout = layout_get_type(workspace);
+	if (pin &&
+		((layout == L_HORIZ && can_scroll_x) ||
+		 (layout == L_VERT && can_scroll_y))) {
+		workspace->gesture.pin_position = layout_pin_get_position(workspace);
+		layout_pin_remove(workspace, pin);
+		layout_scroll_float_pinned_container(workspace);
+	}
+	return true;
 }
 
 void layout_scroll_update(struct sway_seat *seat, double dx, double dy) {
@@ -1430,16 +1591,41 @@ static void scroll_end_vertical(struct sway_seat *seat, list_t *children, int ac
 	}
 }
 
+static bool scrolling_in_pin_direction(enum sway_container_layout layout,
+		enum sway_layout_direction dir) {
+	if ((layout == L_HORIZ && (dir == DIR_LEFT || dir == DIR_RIGHT)) ||
+		(layout == L_VERT && (dir == DIR_UP || dir == DIR_DOWN))) {
+		return true;
+	}
+	return false;
+}
+
 bool layout_scroll_end(struct sway_seat *seat) {
 	struct sway_workspace *workspace = seat->workspace;
 	if (!workspace->gesture.scrolling) {
 		return false;
 	}
-	workspace->gesture.scrolling = false;
+
 	enum sway_layout_direction scrolling_direction;
 	enum sway_container_layout layout = layout_get_type(workspace);
 	if (fabs(workspace->gesture.dx) > fabs(workspace->gesture.dy)) {
 		scrolling_direction = workspace->gesture.dx > 0.0 ? DIR_RIGHT : DIR_LEFT;
+	} else {
+		scrolling_direction = workspace->gesture.dy > 0.0 ? DIR_DOWN : DIR_UP;
+	}
+
+	if (workspace->gesture.pin) {
+		layout_scroll_unfloat_pinned_container(workspace);
+		if (scrolling_in_pin_direction(layout, scrolling_direction)) {
+			return true;
+		}
+	}
+
+	workspace->gesture.scrolling = false;
+	if (workspace->tiling->length == 0) {
+		return true;
+	}
+	if (scrolling_direction == DIR_LEFT || scrolling_direction == DIR_RIGHT) {
 		if (layout == L_HORIZ) {
 			struct sway_container *active = workspace->current.focused_inactive_child;
 			int active_idx = max(list_find(workspace->tiling, active), 0);
@@ -1451,7 +1637,6 @@ bool layout_scroll_end(struct sway_seat *seat) {
 			scroll_end_horizontal(seat, container->pending.children, active_idx, scrolling_direction);			
 		}
 	} else {
-		scrolling_direction = workspace->gesture.dy > 0.0 ? DIR_DOWN : DIR_UP; 
 		if (layout == L_HORIZ) {
 			struct sway_container *container = get_mouse_container(seat);
 			struct sway_container *active = container->current.focused_inactive_child;
@@ -1519,4 +1704,3 @@ struct sway_container *layout_pin_get_container(struct sway_workspace *workspace
 enum sway_layout_pin layout_pin_get_position(struct sway_workspace *workspace) {
 	return workspace->layout.pin.pos;
 }
-

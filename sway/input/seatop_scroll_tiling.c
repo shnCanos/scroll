@@ -66,7 +66,10 @@ void seatop_begin_scroll_tiling(struct sway_seat *seat,
 	seat->seatop_impl = &seatop_impl;
 	seat->seatop_data = e;
 
-	layout_scroll_begin(seat);
+	if (layout_scroll_begin(seat) == false) {
+		seatop_begin_default(seat);
+		return;
+	}
 
 	cursor_set_image(cursor, "grab", NULL);
 	wlr_seat_pointer_notify_clear_focus(seat->wlr_seat);

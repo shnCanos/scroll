@@ -51,6 +51,8 @@ struct sway_workspace {
 	struct {
 		bool scrolling;
 		double dx, dy;
+		struct sway_container *pin;
+		enum sway_layout_pin pin_position;
 	} gesture;
 
 	struct sway_workspace_state current;

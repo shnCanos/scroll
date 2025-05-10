@@ -670,6 +670,7 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 
 	struct sway_container *pin = layout_pin_enabled(workspace) ?
 		layout_pin_get_container(workspace) : NULL;
+
 	if (layout != layout_get_type(workspace)) {
 		pin = NULL;
 	}
@@ -680,14 +681,14 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 	} else {
 		offset = compute_active_offset(workspace, layout, children, active_idx,
 			workspace->width, workspace->height, gaps, pin);
-	}
-	if (pin) {
-		// active may have moved because of pin, recompute
-		active_idx = list_find(children, active);
-		if (active_idx == -1) {
-			active_idx = 0;
+		if (pin) {
+			// active may have moved because of pin, recompute
+			active_idx = list_find(children, active);
+			if (active_idx == -1) {
+				active_idx = 0;
+			}
+			active = children->items[active_idx];
 		}
-		active = children->items[active_idx];
 	}
 
 	double t, x, y, anim_scale;
@@ -721,6 +722,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 				if (child->view) {
 					child->pending.content_x += delta;
 				}
+			} else {
+				child->current.x = workspace->x + scale * gaps;
+				child->pending.x = workspace->x + scale * gaps;
 			}
 			sway_scene_node_reparent(&child->scene_tree->node, content);
 			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
@@ -746,6 +750,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 				if (child->view) {
 					child->pending.content_x += delta;
 				}
+			} else {
+				child->current.x = workspace->x + scale * gaps;
+				child->pending.x = workspace->x + scale * gaps;
 			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
 			double movement = fabs(off - child->animation.y0);
@@ -794,6 +801,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 				if (child->view) {
 					child->pending.content_y += delta;
 				}
+			} else {
+				child->current.y = workspace->y + scale * gaps;
+				child->pending.y = workspace->y + scale * gaps;
 			}
 			sway_scene_node_reparent(&child->scene_tree->node, content);
 			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
@@ -819,6 +829,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 				if (child->view) {
 					child->pending.content_y += delta;
 				}
+			} else {
+				child->current.y = workspace->y + scale * gaps;
+				child->pending.y = workspace->y + scale * gaps;
 			}
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
 			double movement = fabs(off - child->animation.x0);
@@ -1443,10 +1456,11 @@ static void children_save_animation_variables(list_t *children) {
 }
 
 static void workspace_save_animation_variables(struct sway_workspace *ws) {
-	if (ws->tiling->length == 0) {
+	if (ws->tiling->length == 0 && ws->floating->length) {
 		return;
 	}
 	children_save_animation_variables(ws->tiling);
+	children_save_animation_variables(ws->floating);
 }
 
 static void save_animation_variables() {
