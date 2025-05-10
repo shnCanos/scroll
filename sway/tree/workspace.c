@@ -819,6 +819,11 @@ void workspace_add_floating(struct sway_workspace *workspace,
 	if (con->pending.workspace) {
 		container_detach(con);
 	}
+	if (layout_scale_enabled(workspace)) {
+		layout_view_scale_set(con, layout_scale_get(workspace));
+	} else {
+		layout_view_scale_reset(con);
+	}
 	list_add(workspace->floating, con);
 	con->pending.workspace = workspace;
 	container_for_each_child(con, set_workspace, NULL);

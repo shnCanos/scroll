@@ -96,25 +96,56 @@ static void buffer_set_dest_size_iterator(struct sway_scene_buffer *buffer,
 	sway_scene_buffer_set_dest_size(buffer, round(width * *scale), round(height * *scale));
 }
 
+static void recreate_view_buffer(struct sway_container *view, float scale) {
+	float total_scale = scale;
+	if (view_is_content_scaled(view->view)) {
+		total_scale *= view_get_content_scale(view->view);
+	}
+	sway_scene_node_for_each_buffer(&view->content_tree->node,
+		buffer_set_dest_size_iterator, &total_scale);
+	// Views using CSD need to be reconfigured, otherwise the content
+	// is not in sync with our borders. Also, some views created while
+	// in scaled mode need to be reconfigured, so reconfigure everything
+	// just in case.
+	view_configure(view->view, view->pending.content_x, view->pending.content_y,
+		view->pending.content_width, view->pending.content_height);
+
+}
+
 static void recreate_buffers(struct sway_workspace *workspace) {
 	float scale = layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
 	for (int i = 0; i < workspace->tiling->length; ++i) {
 		const struct sway_container *con = workspace->tiling->items[i];
 		for (int j = 0; j < con->pending.children->length; ++j) {
 			struct sway_container *view = con->pending.children->items[j];
-			float total_scale = scale;
-			if (view_is_content_scaled(view->view)) {
-				total_scale *= view_get_content_scale(view->view);
-			}
-			sway_scene_node_for_each_buffer(&view->content_tree->node,
-				buffer_set_dest_size_iterator, &total_scale);
-			// Views using CSD need to be reconfigured, otherwise the content
-			// is not in sync with our borders. Also, some views created while
-			// in scaled mode need to be reconfigured, so reconfigure everything
-			// just in case.
-			view_configure(view->view, view->pending.content_x, view->pending.content_y,
-				view->pending.content_width, view->pending.content_height);
+			recreate_view_buffer(view, scale);
 		}
+	}
+	for (int i = 0; i < workspace->floating->length; ++i) {
+		const struct sway_container *con = workspace->floating->items[i];
+		if (con->view) {
+			float total_scale = scale;
+			if (view_is_content_scaled(con->view)) {
+				total_scale *= view_get_content_scale(con->view);
+			}
+			sway_scene_node_for_each_buffer(&con->view->content_tree->node,
+				buffer_set_dest_size_iterator, &total_scale);
+			view_configure(con->view, con->pending.content_x, con->pending.content_y,
+				con->pending.content_width, con->pending.content_height);
+		} else {
+			for (int j = 0; j < con->pending.children->length; ++j) {
+				struct sway_container *view = con->pending.children->items[j];
+				recreate_view_buffer(view, scale);
+			}
+		}
+	}
+}
+
+static void workspace_set_scale(struct sway_workspace *workspace, float scale) {
+	workspace->layers.tiling->node.scale = scale;
+	for (int i = 0; i < workspace->floating->length; ++i) {
+		struct sway_container *con = workspace->floating->items[i];
+		layout_view_scale_set(con, scale);
 	}
 }
 
@@ -137,7 +168,7 @@ void layout_overview_recompute_scale(struct sway_workspace *workspace, int gaps)
 	}
 	float scale = fmin(workspace->width / w, workspace->height / maxh);
 	if (workspace->layers.tiling->node.scale != scale) {
-		workspace->layers.tiling->node.scale = scale;
+		workspace_set_scale(workspace, scale);
 		node_set_dirty(&workspace->node);
 		recreate_buffers(workspace);
 	}
@@ -147,7 +178,7 @@ void layout_overview_toggle(struct sway_workspace *workspace) {
 	if (workspace->layout.overview) {
 		// Disable and restore old scale value
 		workspace->layout.overview = false;
-		workspace->layers.tiling->node.scale = workspace->layout.mem_scale;
+		workspace_set_scale(workspace, workspace->layout.mem_scale);
 		node_set_dirty(&workspace->node);
 		recreate_buffers(workspace);
 		if (workspace->layout.fullscreen) {
@@ -179,14 +210,14 @@ bool layout_overview_enabled(struct sway_workspace *workspace) {
 }
 
 void layout_scale_set(struct sway_workspace *workspace, float scale) {
-	workspace->layers.tiling->node.scale = scale;
+	workspace_set_scale(workspace, scale);
 	node_set_dirty(&workspace->node);
 	recreate_buffers(workspace);
 	ipc_event_scroller("scale", workspace);
 }
 
 void layout_scale_reset(struct sway_workspace *workspace) {
-	workspace->layers.tiling->node.scale = -1.0f;
+	workspace_set_scale(workspace, -1.0f);
 	node_set_dirty(&workspace->node);
 	recreate_buffers(workspace);
 	ipc_event_scroller("scale", workspace);
@@ -198,6 +229,22 @@ float layout_scale_get(struct sway_workspace *workspace) {
 
 bool layout_scale_enabled(struct sway_workspace *workspace) {
 	return workspace->layers.tiling->node.scale > 0.0f;
+}
+
+void layout_view_scale_set(struct sway_container *view, float scale) {
+	view->scene_tree->node.scale = scale;
+}
+
+void layout_view_scale_reset(struct sway_container *view) {
+	view->scene_tree->node.scale = -1.0f;
+}
+
+float layout_view_scale_get(struct sway_container *view) {
+	return view->scene_tree->node.scale;
+}
+
+bool layout_view_scale_enabled(struct sway_container *view) {
+	return view->scene_tree->node.scale > 0.0f;
 }
 
 void layout_modifiers_init(struct sway_workspace *workspace) {
@@ -393,6 +440,7 @@ static void layout_workspace_add_view(struct sway_workspace *workspace, struct s
 
 // Layout API
 void layout_add_view(struct sway_workspace *workspace, struct sway_container *active, struct sway_container *view) {
+	layout_view_scale_reset(view);
 	enum sway_layout_insert pos = layout_modifiers_get_insert(workspace);
 	enum sway_container_layout mode = layout_modifiers_get_mode(workspace);
 	if (layout_get_type(workspace) == mode || workspace->tiling->length == 0) {
@@ -1364,6 +1412,11 @@ static void layout_scroll_float_pinned_container(struct sway_workspace *workspac
 	// Float the pin
 	list_del(workspace->tiling, pidx);
 	list_add(workspace->floating, pin);
+	if (layout_scale_enabled(workspace)) {
+		layout_view_scale_set(pin, layout_scale_get(workspace));
+	} else {
+		layout_view_scale_reset(pin);
+	}
 	node_set_dirty(&workspace->node);
 	//node_set_dirty(&pin->node);
 	transaction_commit_dirty();
@@ -1429,6 +1482,7 @@ static void layout_scroll_unfloat_pinned_container(struct sway_workspace *worksp
 		seat_set_focus_container(seat, pin);
 	}
 	list_del(workspace->floating, fidx);
+	layout_view_scale_reset(pin);
 	layout_pin_set(workspace, pin, pos);
 	node_set_dirty(&workspace->node);
 	node_set_dirty(&pin->node);
