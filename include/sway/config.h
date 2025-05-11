@@ -594,6 +594,7 @@ struct sway_config {
 		struct border_colors focused_tab_title;
 		struct border_colors unfocused;
 		struct border_colors urgent;
+		struct border_colors pinned;
 		struct border_colors placeholder;
 		float background[4];
 	} border_colors;

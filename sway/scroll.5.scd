@@ -811,6 +811,9 @@ runtime.
 		but is not directly focused. Defaults to focused_inactive if not
 		specified and does not use the indicator and child_border colors.
 
+	*client.pinned*
+		A pinned column/row.
+
 	*client.placeholder*
 		Ignored (present for i3 compatibility).
 
@@ -884,6 +887,12 @@ The default colors are:
 :  #ffffff
 :  #900000
 :  #900000
+|  *pinned*
+:  #beeeef
+:  #000000
+:  #ffffff
+:  #efeebe
+:  #beeeef
 |  *placeholder*
 :  #000000
 :  #0c0c0c

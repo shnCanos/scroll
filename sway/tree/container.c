@@ -212,6 +212,16 @@ static struct border_colors *container_get_current_colors(
 
 	bool urgent = con->view ?
 		view_is_urgent(con->view) : container_has_urgent_child(con);
+
+	struct sway_workspace *workspace = con->pending.workspace;
+	bool pinned = false;
+	if (workspace) {
+		if (layout_pin_enabled(workspace)) {
+			struct sway_container *parent = con->pending.parent ? con->pending.parent : con;
+			pinned = layout_pin_get_container(workspace) == parent;
+		}
+	}
+
 	struct sway_container *active_child;
 
 	if (con->current.parent) {
@@ -224,6 +234,8 @@ static struct border_colors *container_get_current_colors(
 
 	if (urgent) {
 		colors = &config->border_colors.urgent;
+	} else if (pinned) {
+		colors = &config->border_colors.pinned;
 	} else if (con->current.focused || container_is_current_parent_focused(con)) {
 		colors = &config->border_colors.focused;
 	} else if (config->has_focused_tab_title && container_has_focused_child(con)) {
