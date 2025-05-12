@@ -426,6 +426,41 @@ logic is as follows when you call `pin`:
 2. If the current container is not pinned yet: it will replace the pinned
    container, if any.
 
+### Window Selection/Moving
+
+The command `selection` manages window/container selections. You can select
+several windows or containers at a time, even in different workspaces and/or
+from overview mode. Those windows will change the border color to the one
+specified in the option `client.selected`.
+
+Use `selection toggle` to select/deselect a window (in window mode)
+or a full container (in top-level mode).
+
+If you want to clear a selection, instead of "toggling" each window/container,
+you can call `selection reset`, which will clear all the selected items.
+
+Once you have made a selection, you can move those windows to a different
+workspace or location in the same workspace using `selection move`.
+The selection order and column/window configuration will be maintained.
+
+If your new location has a different layout type (for example, vertical
+instead of horizontal), your containers and windows will adapt, transposing
+their positions to better fit the new destination.
+
+`selection workspace` will add every window of the current workspace
+to the selection. You can use this when you want to move one workspace to a
+different one, but keeping windows positions and sizes. Use
+`selection workspace`, and then `selection move` where you want the windows
+to appear.
+
+`selection move` uses the current mode modifier to locate the new containers.
+So you can place the new containers `before`, `after`, at the beginning
+(`beg`) or `end` depending on the current mode.
+
+```
+selection <toggle|reset|workspace|move>
+```
+
 
 ### Tips for Using Marks
 

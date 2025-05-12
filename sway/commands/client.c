@@ -78,7 +78,12 @@ struct cmd_results *cmd_client_urgent(int argc, char **argv) {
 
 struct cmd_results *cmd_client_pinned(int argc, char **argv) {
 	return handle_command(argc, argv, "client.pinned",
-			&config->border_colors.pinned, "#EFEEBEff");
+			&config->border_colors.pinned, "#efeebeff");
+}
+
+struct cmd_results *cmd_client_selected(int argc, char **argv) {
+	return handle_command(argc, argv, "client.pinned",
+			&config->border_colors.pinned, "#00b000ff");
 }
 
 struct cmd_results *cmd_client_noop(int argc, char **argv) {

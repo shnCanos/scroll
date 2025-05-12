@@ -160,4 +160,19 @@ void layout_pin_remove(struct sway_workspace *workspace, struct sway_container *
 struct sway_container *layout_pin_get_container(struct sway_workspace *workspace);
 enum sway_layout_pin layout_pin_get_position(struct sway_workspace *workspace);
 
+// Selection
+
+// Toggle a selection: depending on mode, chooses a top level or view container
+void layout_selection_toggle(struct sway_container *container);
+// Select every container in the workspace
+void layout_selection_workspace(struct sway_workspace *workspace);
+// Resets the selection
+void layout_selection_reset();
+// Move the selection to workspace, with a location given by the current mode modifier
+bool layout_selection_move(struct sway_workspace *workspace);
+
+// Returns true if the container is selected
+bool layout_selection_enabled(struct sway_container *container);
+void layout_selection_set(struct sway_container *container, bool selected);
+
 #endif // _SWAY_LAYOUT_H

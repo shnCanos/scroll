@@ -140,6 +140,8 @@ struct sway_container {
 		double w1, h1;
 	} animation;
 
+	bool selected;	// for selection/cut/move
+
 	// Indicates that the container is a scratchpad container.
 	// Both hidden and visible scratchpad containers have scratchpad=true.
 	// Hidden scratchpad containers have a NULL parent.

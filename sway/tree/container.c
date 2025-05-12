@@ -234,6 +234,8 @@ static struct border_colors *container_get_current_colors(
 
 	if (urgent) {
 		colors = &config->border_colors.urgent;
+	} else if (layout_selection_enabled(con)) {
+		colors = &config->border_colors.selected;
 	} else if (pinned) {
 		colors = &config->border_colors.pinned;
 	} else if (con->current.focused || container_is_current_parent_focused(con)) {
@@ -1032,6 +1034,9 @@ void container_set_floating(struct sway_container *container, bool enable) {
 
 	if (enable) {
 		struct sway_container *old_parent = container->pending.parent;
+		if (layout_selection_enabled(old_parent)) {
+			layout_selection_set(container, true);
+		}
 		container_detach(container);
 		workspace_add_floating(workspace, container);
 		if (container->view) {

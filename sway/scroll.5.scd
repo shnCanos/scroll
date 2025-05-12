@@ -518,6 +518,37 @@ set|plus|minus|toggle <amount>
 	Shows a window from the scratchpad. Repeatedly using this command will
 	cycle through the windows in the scratchpad.
 
+*selection* toggle|reset|workspace|move
+	This command manages window/container selections. You can select several
+	windows or containers at a time, even in different workspaces and/or
+	from overview mode. Those windows will change the border color to the one
+	specified in the option _client.selected_.
+
+	Use _toggle_ to select/deselect a window (in window mode) or a full
+	container (in top-level mode).
+
+	If you want to clear a selection, instead of "toggling" each
+	window/container, you can call _reset_, which will clear all the selected
+	items.
+
+	Once you have made a selection, you can move those windows to a different
+	workspace or location in the same workspace using _move_.
+	The selection order and column/window configuration will be maintained.
+
+	_workspace_ will add every window of the current workspace to the
+	selection. You can use this when you want to move one workspace to a
+	different one, but keeping windows positions and sizes. Use
+	*selection workspace*, and then *selection move* where you want the
+	windows to appear.
+
+	_move_ uses the current mode modifiers to locate the new containers. So
+	you can place the new containers _before_, _after_, at the
+	beginning (_beg_) or _end_.
+
+	If your new location has a different layout type (for example, vertical
+	instead of horizontal), your containers and windows will adapt, transposing
+	their positions to better fit their new destination.
+
 *set_mode* [<h|v|t> <after|before|end|beg> <focus|nofocus>
 <center_horiz|nocenter_horiz> <center_vert|nocenter_vert>
 <reorder_auto|noreorder_auto>]
@@ -814,6 +845,9 @@ runtime.
 	*client.pinned*
 		A pinned column/row.
 
+	*client.selected*
+		A selected view/container. See the command *selection*.
+
 	*client.placeholder*
 		Ignored (present for i3 compatibility).
 
@@ -893,6 +927,12 @@ The default colors are:
 :  #ffffff
 :  #efeebe
 :  #beeeef
+|  *selected*
+:  #009000
+:  #000000
+:  #ffffff
+:  #00b000
+:  #00b000
 |  *placeholder*
 :  #000000
 :  #0c0c0c

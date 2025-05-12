@@ -224,6 +224,12 @@ fullscreen_movefocus true
     bindsym --no-repeat $mod+a pin beginning
     bindsym --no-repeat $mod+Shift+a pin end
 
+    # Selection
+    bindsym --no-repeat $mod+Insert selection toggle
+    bindsym --no-repeat $mod+Ctrl+Insert selection reset
+    bindsym --no-repeat $mod+Shift+Insert selection move
+    bindsym --no-repeat $mod+Ctrl+Shift+Insert selection workspace
+
     # Marks
     # bindsym $mod+m exec scroll-mark-toggle.sh
     # bindsym $mod+Shift+m exec scroll-mark-remove.sh
