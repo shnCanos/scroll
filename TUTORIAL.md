@@ -54,7 +54,8 @@ You can toggle different window widths and heights in real-time using
 configuration, and resize the active window accordingly.
 
 Of course you can also manually define exactly the size of a window with
-`resize`.
+`resize` or use `set_size` to directly choose a fraction without having to
+cycle through them.
 
 If you want to quickly fit a series of windows in a column or columns in a
 row, you can use `fit_size`. It will ignore fractions, and re-scale all the
@@ -79,14 +80,16 @@ of the whole workspace.
 ## Jump Mode
 
 Jump mode takes advantage of overview mode to provide a very quick way to focus on
-any window on your monitors. Similar to [vim-easymotion](https://github.com/easymotion/vim-easymotion),
-it overlays a label on each window. Pressing all the numbers of a label,
-changes focus to the selected window.
+any window or workspace on your monitors. Similar to [vim-easymotion](https://github.com/easymotion/vim-easymotion),
+it overlays a label on each window (or workspace if you use `jump workspaces`.
+Pressing all the numbers of a label, changes focus to the selected window or
+workspace.
 
 1. Assign a key binding to `jump`, for this tutorial:
 
 ``` config
 bindsym --no-repeat $mod+slash jump
+bindsym --no-repeat $mod+Shift+slash jump workspaces
 ```
 
 2. Pressing your `mod` key and `/` will show an overview of your windows on
@@ -95,6 +98,9 @@ bindsym --no-repeat $mod+slash jump
    focus to.
 4. `jump` will exit, and the focus will be on the window you selected.
 
+If instead you press `mod`, `Shift` and `/`, you will see a bird's eye view of
+all your workspaces. Pressing a combination of keys, like in the example
+above, will take you to the chosen workspace.
 
 ## Content Scaling
 
@@ -119,13 +125,46 @@ bindsym --whole-window $mod+Shift+button5 scale_workspace incr 0.05
 ```
 
 
+## Pins
+
+Sometimes you want to keep one window static at all times, for example an
+editor with a file you are working on, while letting other windows scroll
+in the rest of the available space. These windows may include terminals or
+documentation browser windows. You can pin a column to the right or left
+(top or bottom) of the monitor, and it will stay at that location until you
+call pin again.
+
+
+## Moving Columns/Windows Around.
+
+To be able to re-organize windows and columns more easily, you can use
+`selection toggle` to select and deselect windows. Those windows can be in
+any workspace, and can also be selected from overview mode. After you are
+done with your selection, go to the place where you want to move them (same
+or different workspace), and call `selection move`. All the selected
+windows/containers will move to your current location. If you want to select
+a full workspace, use `selection workspace`, or `selection reset` to undo a
+multiple selection. You can control more precisely where the selection will
+end up by changing mode modifiers (after, before, end,...)
+
+
+## Working in Full Screen Mode
+
+Overview and jump can be very helpful when you work in fullscreen mode. You
+can keep all your windows maximized or in full screen mode, and toggle
+overview on/off to see your full desktop, and quickly focus or change the
+position to a different application.
+
+
 ## Touchpad Gestures
 
-By default, *hyprscroller* supports three and four finger touchpad swipe
+By default, *scroll* supports three and four finger touchpad swipe
 gestures to scroll windows, call *overview* and switch workspaces.
 
+You can also scroll windows with the mouse. Press `mod` and the middle mouse
+button, and you can drag/scroll columns and windows.
 
 ## Example Configuration
 
 *scroll* includes an example [configuration](https://github.com/dawsers/scroll/blob/master/config.in)
-with most of the key bindings recommended for a basic setup.
+with most of the key bindings recommended for a standard setup.
