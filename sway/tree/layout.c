@@ -517,6 +517,9 @@ static void layout_workspace_add_view(struct sway_workspace *workspace, struct s
 	// Insert the container
 	workspace_insert_tiling_direct(workspace, parent, idx);
 
+	// When adding a new view, reset REORDER to AUTO
+	layout_modifiers_set_reorder(workspace, REORDER_AUTO);
+
 	if (active) {
 		position_new_container(workspace, workspace->tiling,
 			active->pending.parent ? active->pending.parent : active, parent, idx);
