@@ -19,7 +19,8 @@ supports some added features:
 
 * Overview and Jump modes: You can see an overview of the desktop and work
   with the windows at that scale. Jump allows you to move to any window with
-  just some key presses, like easymotion in some editors.
+  just some key presses, like easymotion in some editors. There is also a jump
+  mode to preview and switch to any available workspace.
 
 * Workspace scaling: Apart from overview, you can scale the workspace to any
   scale, and continue working.
@@ -319,6 +320,14 @@ on the overlaid label.
 
 You can call `jump` from any mode: overview or normal mode.
 
+There is also a special `jump workspaces` mode where you will see a preview of
+all the available workspaces on their respective monitor. You can use this
+mode to preview and quickly jump to any workspace.
+
+``` config
+    bindsym --no-repeat $mod+slash jump
+    bindsym --no-repeat $mod+Shift+slash jump workspaces
+```
 
 ### Content Scaling
 

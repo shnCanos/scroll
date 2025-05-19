@@ -57,7 +57,11 @@ struct cmd_results *cmd_jump(int argc, char **argv) {
 				"Can't run this command while there are no outputs connected.");
 	}
 
-	layout_jump();
+	if (argc > 0 && strcasecmp(argv[0], "workspaces") == 0) {
+		layout_jump_workspaces();
+	} else {
+		layout_jump();
+	}
 
 	return cmd_results_new(CMD_SUCCESS, NULL);
 }

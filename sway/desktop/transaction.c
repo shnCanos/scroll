@@ -1078,7 +1078,10 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 	for (int i = 0; i < output->current.workspaces->length; i++) {
 		struct sway_workspace *child = output->current.workspaces->items[i];
 
-		bool activated = output->current.active_workspace == child && output->wlr_output->enabled;
+		bool activated = output->wlr_output->enabled;
+		if (!layout_overview_workspaces_enabled()) {
+			activated = activated && output->current.active_workspace == child;
+		}
 
 		sway_scene_node_reparent(&child->layers.tiling->node, output->layers.tiling);
 		sway_scene_node_reparent(&child->layers.fullscreen->node, output->layers.fullscreen);

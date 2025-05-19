@@ -75,6 +75,8 @@ struct sway_root *root_create(struct wl_display *wl_display) {
 	root->non_desktop_outputs = create_list();
 	root->scratchpad = create_list();
 
+	root->overview = false;
+
 	return root;
 }
 

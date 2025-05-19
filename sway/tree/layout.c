@@ -66,6 +66,10 @@ void layout_init(struct sway_workspace *workspace) {
 	layout_modifiers_init(workspace);
 	workspace->layout.overview = false;
 	workspace->layout.mem_scale = -1.0f;  // disabled
+	workspace->layout.workspaces.text = NULL;
+	bool failed = false;
+	workspace->layout.workspaces.tree = alloc_scene_tree(workspace->layers.tiling, &failed);
+	sway_scene_node_set_enabled(&workspace->layout.workspaces.tree->node, false);
 	ipc_event_scroller("new", workspace);
 }
 
@@ -203,6 +207,87 @@ void layout_overview_toggle(struct sway_workspace *workspace) {
 		layout_overview_recompute_scale(workspace, workspace->gaps_inner);
 	}
 	ipc_event_scroller("overview", workspace);
+}
+
+bool layout_overview_workspaces_enabled() {
+	return root->overview;
+}
+
+static void output_damage_whole(struct sway_output *output) {
+	struct wlr_output *wlr_output = output->wlr_output;
+	struct sway_scene_output *scene_output = output->scene_output;
+
+	pixman_region32_t damage;
+	pixman_region32_init_rect(&damage, 0, 0, wlr_output->width, wlr_output->height);
+
+	wlr_output_schedule_frame(wlr_output);
+	wlr_damage_ring_add(&scene_output->damage_ring, &damage);
+
+	pixman_region32_union(&scene_output->pending_commit_damage,
+		&scene_output->pending_commit_damage, &damage);
+
+	pixman_region32_fini(&damage);
+}
+
+
+static const int workspaces_gap = 20;
+
+void layout_overview_workspaces_toggle() {
+	root->overview = !root->overview;
+	for (int i = 0; i < root->outputs->length; i++) {
+		struct sway_output *output = root->outputs->items[i];
+		if (layout_overview_workspaces_enabled()) {
+			struct wlr_box *usable_area = &output->usable_area;
+			float oscale = output->wlr_output->scale;
+			double left = round(usable_area->x * oscale);
+			double top = round(usable_area->y * oscale);
+			double uwidth = round(usable_area->width * oscale);
+			double uheight = round(usable_area->height * oscale);
+			int width = output->wlr_output->width;
+			int height = output->wlr_output->height;
+			const int length = output->current.workspaces->length;
+			const int rows = ceil(sqrt(length));
+			const double scale = fmin((uwidth - workspaces_gap * (rows + 1)) / (rows * width),
+				(uheight - workspaces_gap * (rows + 1)) / (rows * height));
+			const int per_row = length / rows;
+			int remain = length % rows;
+			int j = 0;
+			for (int r = 0; r < rows; ++r) {
+				int cols = per_row;
+				if (remain > 0) {
+					++cols;
+					remain--;
+				}
+				double gapx = (uwidth - cols * scale * width) / (cols + 1);
+				double gapy = (uheight - rows * scale * height) / (rows + 1);
+				for (int c = 0; c < cols; ++c) {
+					struct sway_workspace *child = output->current.workspaces->items[j++];
+					child->layout.workspaces.x = round(left + gapx + c * (scale * width + gapx));
+					child->layout.workspaces.y = round(top + gapy + r * (scale * height + gapy));
+					child->layout.workspaces.width = ceil(scale * width);
+					child->layout.workspaces.height = ceil(scale * height);
+					child->layout.workspaces.scale = scale;
+					child->layers.tiling->node.data = child;
+					node_set_dirty(&child->node);
+					for (int f = 0; f < child->floating->length; ++f) {
+						struct sway_container *con = child->floating->items[f];
+						con->scene_tree->node.data = child;
+					}
+				}
+			}
+		} else {
+			for (int j = 0; j < output->current.workspaces->length; ++j) {
+				struct sway_workspace *child = output->current.workspaces->items[j];
+				child->layers.tiling->node.data = NULL;
+				node_set_dirty(&child->node);
+				for (int f = 0; f < child->floating->length; ++f) {
+					struct sway_container *con = child->floating->items[f];
+					con->scene_tree->node.data = NULL;
+				}
+			}
+		}
+		output_damage_whole(output);
+	}
 }
 
 bool layout_overview_enabled(struct sway_workspace *workspace) {
@@ -1068,8 +1153,15 @@ bool layout_move_container(struct sway_container *container, enum sway_layout_di
 	}
 }
 
-void layout_toggle_pin(struct sway_scroller *layout) {
-
+static void switch_workspace(struct sway_workspace *workspace) {
+	// Focus workspace
+	struct sway_seat *seat = input_manager_current_seat();
+	struct sway_node *next = seat_get_focus_inactive(seat, &workspace->node);
+	if (next == NULL) {
+		next = &workspace->node;
+	}
+	seat_set_focus(seat, next);
+	seat_consider_warp_to_focus(seat);
 }
 
 static void container_toggle_jump_decoration(struct sway_container *con, char *text) {
@@ -1107,9 +1199,7 @@ struct jump_data {
 	uint32_t nwindows;
 };
 
-static void jump_handle_keyboard_key(struct sway_keyboard *keyboard, struct wlr_keyboard_key_event *event, void *data);
-
-static void override_keyboard(bool override, void *data) {
+static void override_keyboard(bool override, sway_keyboard_cb_fn callback, void *data) {
 	struct sway_seat *seat = input_manager_current_seat();
 	struct sway_seat_device *seat_device, *next;
 	wl_list_for_each_safe(seat_device, next, &seat->devices, link) {
@@ -1118,7 +1208,7 @@ static void override_keyboard(bool override, void *data) {
 			continue;
 		}
 		if (override) {
-			sway_keyboard_set_keypress_cb(keyboard, jump_handle_keyboard_key, data);
+			sway_keyboard_set_keypress_cb(keyboard, callback, data);
 		} else {
 			sway_keyboard_set_keypress_cb(keyboard, NULL, NULL);
 		}
@@ -1126,7 +1216,7 @@ static void override_keyboard(bool override, void *data) {
 	struct sway_keyboard_group *keyboard_group, *next_kg;
 	wl_list_for_each_safe(keyboard_group, next_kg, &seat->keyboard_groups, link) {
 		if (override) {
-			sway_keyboard_set_keypress_cb(keyboard_group->seat_device->keyboard, jump_handle_keyboard_key, data);
+			sway_keyboard_set_keypress_cb(keyboard_group->seat_device->keyboard, callback, data);
 		} else {
 			sway_keyboard_set_keypress_cb(keyboard_group->seat_device->keyboard, NULL, NULL);
 		}
@@ -1218,7 +1308,7 @@ cleanup:
 	list_free(jump_data->workspaces);
 	free(jump_data);
 	transaction_commit_dirty();
-	override_keyboard(false, NULL);
+	override_keyboard(false, NULL, NULL);
 }
 
 void layout_jump() {
@@ -1266,7 +1356,121 @@ void layout_jump() {
 			}
 		}
 	}
-	override_keyboard(true, jump_data);
+	override_keyboard(true, jump_handle_keyboard_key, jump_data);
+}
+
+static void workspace_toggle_jump_decoration(struct sway_workspace *ws, char *text) {
+	if (!text) {
+		if (ws->layout.workspaces.text) {
+			sway_scene_node_destroy(ws->layout.workspaces.text->node);
+			ws->layout.workspaces.text = NULL;
+		}
+		return;
+	} else if (!ws->layout.workspaces.text) {
+		ws->layout.workspaces.text = sway_text_node_create(ws->layout.workspaces.tree,
+			text, config->jump_labels_color, false);
+	} else {
+		sway_text_node_set_text(ws->layout.workspaces.text, text);
+	}
+	sway_text_node_set_background(ws->layout.workspaces.text, config->jump_labels_background);
+	double jscale = config->jump_labels_scale;
+	float scale = fmin((double) ws->width / ws->layout.workspaces.text->width,
+		(double) ws->height / ws->layout.workspaces.text->height);
+	sway_text_node_scale(ws->layout.workspaces.text, jscale * scale);
+	int x = 0.5 * (ws->width - ws->layout.workspaces.text->width * jscale * scale);
+	int y = 0.5 * (ws->height - ws->layout.workspaces.text->height * jscale * scale);
+	sway_scene_node_set_position(&ws->layout.workspaces.tree->node, x, y);
+	sway_scene_node_set_enabled(&ws->layout.workspaces.tree->node, true);
+	sway_scene_node_raise_to_top(&ws->layout.workspaces.tree->node);
+}
+
+static void jump_workspaces_handle_keyboard_key(struct sway_keyboard *keyboard,
+		struct wlr_keyboard_key_event *event, void *data) {
+	struct jump_data *jump_data = data;
+
+	uint32_t keycode = event->keycode + 8; // Because to xkbcommon it's +8 from libinput
+	const xkb_keysym_t keysym = xkb_state_key_get_one_sym(keyboard->wlr->xkb_state, keycode);
+
+	if (event->state != WL_KEYBOARD_KEY_STATE_PRESSED) {
+		return;
+	}
+	// Check if key is valid, otherwise exit
+	bool valid = false;
+	for (uint32_t i = 0; i < strlen(config->jump_labels_keys); ++i) {
+		char keyname[2] = { config->jump_labels_keys[i], 0x0 };
+		xkb_keysym_t key = xkb_keysym_from_name(keyname, XKB_KEYSYM_NO_FLAGS);
+		if (key && key == keysym) {
+			jump_data->window_number = jump_data->window_number * strlen(config->jump_labels_keys) + i;
+			valid = true;
+			break;
+		}
+	}
+	bool focus = false;
+	if (valid) {
+		jump_data->keys_pressed++;
+		if (jump_data->keys_pressed == jump_data->nkeys) {
+			if (jump_data->window_number < jump_data->nwindows) {
+				focus = true;
+			}
+		} else {
+			return;
+		}
+	}
+
+	layout_overview_workspaces_toggle();
+
+	u_int32_t n = 0;
+	for (int i = 0; i < root->outputs->length; ++i) {
+		struct sway_output *output = root->outputs->items[i];
+		for (int j = 0; j < output->current.workspaces->length; ++j) {
+			struct sway_workspace *child = output->current.workspaces->items[j];
+			if (focus && n == jump_data->window_number) {
+				switch_workspace(child);
+			}
+			++n;
+			workspace_toggle_jump_decoration(child, NULL);
+		}
+	}
+
+	free(jump_data);
+	transaction_commit_dirty();
+	override_keyboard(false, NULL, NULL);
+}
+
+void layout_jump_workspaces() {
+	layout_overview_workspaces_toggle();
+
+	struct jump_data *jump_data = calloc(1, sizeof(struct jump_data));
+	jump_data->workspaces = NULL;
+
+	uint32_t nworkspaces = 0;
+	for (int i = 0; i < root->outputs->length; ++i) {
+		struct sway_output *output = root->outputs->items[i];
+		nworkspaces += output->current.workspaces->length;
+	}
+	if (nworkspaces == 0) {
+		free(jump_data);
+		layout_overview_workspaces_toggle();
+		transaction_commit_dirty();
+		return;
+	}
+
+	uint32_t nkeys = nworkspaces == 1 ? 1 : ceil(log10(nworkspaces) / log10(strlen(config->jump_labels_keys)));
+	jump_data->nwindows = nworkspaces;
+	jump_data->nkeys = nkeys;
+
+	for (int i = 0, n = 0; i < root->outputs->length; ++i) {
+		struct sway_output *output = root->outputs->items[i];
+		for (int j = 0; j < output->current.workspaces->length; ++j) {
+			struct sway_workspace *child = output->current.workspaces->items[j];
+			char *label = generate_label(n++, config->jump_labels_keys, nkeys);
+			workspace_toggle_jump_decoration(child, label);
+			free(label);
+		}
+	}
+	transaction_commit_dirty();
+
+	override_keyboard(true, jump_workspaces_handle_keyboard_key, jump_data);
 }
 
 // When the workspace is scaled, offsets are not valid to check cursor or bounds,
@@ -1997,7 +2201,7 @@ bool layout_selection_move(struct sway_workspace *new_workspace) {
 			}
 			seat_set_focus_container(seat, focus);
 		} else {
-			seat_set_focus_workspace(seat, new_workspace);
+			switch_workspace(new_workspace);
 		}
 		seat_consider_warp_to_focus(seat);
 	}

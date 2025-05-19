@@ -74,6 +74,14 @@ struct sway_scroller {
 		struct sway_container *container;
 		enum sway_layout_pin pos;
 	} pin;
+
+	struct {
+		double x, y;
+		double width, height;
+		float scale;
+		struct sway_scene_tree *tree;
+		struct sway_text_node *text;
+	} workspaces;
 };
 
 // Global functions
@@ -97,6 +105,9 @@ void layout_overview_toggle(struct sway_workspace *workspace);
 void layout_overview_recompute_scale(struct sway_workspace *workspace, int gaps);
 // Return true if overview is on
 bool layout_overview_enabled(struct sway_workspace *workspace);
+
+bool layout_overview_workspaces_enabled();
+void layout_overview_workspaces_toggle();
 
 void layout_scale_set(struct sway_workspace *workspace, float scale);
 void layout_scale_reset(struct sway_workspace *workspace);
@@ -137,6 +148,7 @@ bool layout_move_container(struct sway_container *container, enum sway_layout_di
 void layout_toggle_pin(struct sway_scroller *layout);
 
 void layout_jump();
+void layout_jump_workspaces();
 
 // Gestures
 // Begin scrolling swipe gesture. Return true if scrolling, false if there are

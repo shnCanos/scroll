@@ -16,6 +16,7 @@
 #include "log.h"
 #include "sway/tree/scene.h"
 #include "sway/tree/view.h"
+#include "sway/tree/workspace.h"
 #include "sway/scene_descriptor.h"
 #include "sway/tree/debug.h"
 #include "sway/output.h"
@@ -620,6 +621,23 @@ static struct wlr_output *scene_node_get_output(struct sway_scene_node *node) {
 	return NULL;
 }
 
+static struct sway_workspace *scene_node_get_workspace(struct sway_scene_node *node) {
+	struct sway_scene_tree *tree;
+	if (node->type == SWAY_SCENE_NODE_TREE) {
+		tree = sway_scene_tree_from_node(node);
+	} else {
+		tree = node->parent;
+	}
+
+	while (tree != NULL) {
+		if (tree->node.data != NULL) {
+			return (struct sway_workspace *)tree->node.data;
+		}
+		tree = tree->node.parent;
+	}
+	return NULL;
+}
+
 static void scene_node_apply_tiling_visibility(struct sway_scene_node *node,
 		struct wl_list *outputs) {
 	struct wlr_output *wlr_output = scene_node_get_output(node);
@@ -656,7 +674,7 @@ static bool scene_node_update_iterator(struct sway_scene_node *node,
 
 	scene_node_apply_tiling_visibility(node, data->outputs);
 
-	if (data->calculate_visibility) {
+	if (data->calculate_visibility && !layout_overview_workspaces_enabled()) {
 		pixman_region32_t opaque;
 		pixman_region32_init(&opaque);
 		scene_node_opaque_region(node, lx, ly, &opaque);
@@ -1487,11 +1505,23 @@ struct render_list_entry {
 static void scene_entry_render(struct render_list_entry *entry, const struct render_data *data) {
 	struct sway_scene_node *node = entry->node;
 
+	struct sway_workspace *workspace = scene_node_get_workspace(node);
+	float scale = workspace ? workspace->layout.workspaces.scale : 1.0f;
+	int dx = workspace ? workspace->layout.workspaces.x : 0;
+	int dy = workspace ? workspace->layout.workspaces.y : 0;
+
 	pixman_region32_t render_region;
 	pixman_region32_init(&render_region);
 	pixman_region32_copy(&render_region, &node->visible);
 	pixman_region32_translate(&render_region, -data->logical.x, -data->logical.y);
 	logical_to_buffer_coords(&render_region, data, true);
+	if (workspace) {
+		scale_region(&render_region, scale, false);
+		pixman_region32_translate(&render_region, dx, dy);
+		// Clip against "mini-workspace"
+		pixman_region32_intersect_rect(&render_region, &render_region, dx, dy,
+			workspace->layout.workspaces.width, workspace->layout.workspaces.height);
+	}
 	pixman_region32_intersect(&render_region, &render_region, &data->damage);
 	if (pixman_region32_empty(&render_region)) {
 		pixman_region32_fini(&render_region);
@@ -1512,7 +1542,20 @@ static void scene_entry_render(struct render_list_entry *entry, const struct ren
 	pixman_region32_init(&opaque);
 	scene_node_opaque_region(node, x, y, &opaque);
 	logical_to_buffer_coords(&opaque, data, false);
+	if (workspace) {
+		scale_region(&opaque, scale, false);
+		pixman_region32_translate(&opaque, dx, dy);
+		pixman_region32_intersect_rect(&opaque, &opaque, dx, dy,
+			workspace->layout.workspaces.width, workspace->layout.workspaces.height);
+	}
 	pixman_region32_subtract(&opaque, &render_region, &opaque);
+
+	if (workspace) {
+		dst_box.x = ceil(dst_box.x * scale + dx);
+		dst_box.y = ceil(dst_box.y * scale + dy);
+		dst_box.width = ceil(dst_box.width * scale);
+		dst_box.height = ceil(dst_box.height * scale);
+	}
 
 	switch (node->type) {
 	case SWAY_SCENE_NODE_TREE:
@@ -2221,6 +2264,10 @@ bool sway_scene_output_build_state(struct sway_scene_output *scene_output,
 		render_data.scale = state->scale;
 	}
 
+	if (layout_overview_workspaces_enabled()) {
+		scene_output_damage_whole(scene_output);
+	}
+
 	render_data.trans_width = resolution_width;
 	render_data.trans_height = resolution_height;
 	wlr_output_transform_coords(render_data.transform,
@@ -2380,7 +2427,7 @@ bool sway_scene_output_build_state(struct sway_scene_output *scene_output,
 	// Cull areas of the background that are occluded by opaque regions of
 	// scene nodes above. Those scene nodes will just render atop having us
 	// never see the background.
-	if (scene_output->scene->calculate_visibility) {
+	if (scene_output->scene->calculate_visibility && !layout_overview_workspaces_enabled()) {
 		for (int i = list_len - 1; i >= 0; i--) {
 			struct render_list_entry *entry = &list_data[i];
 

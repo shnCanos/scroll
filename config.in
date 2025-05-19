@@ -195,6 +195,7 @@ fullscreen_movefocus true
     # jump_labels_scale 0.9
     # jump_labels_keys asdf
     bindsym --no-repeat $mod+slash jump
+    bindsym --no-repeat $mod+Shift+slash jump workspaces
 
     # Content
     bindsym $mod+comma scale_content incr -0.05
