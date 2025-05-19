@@ -33,6 +33,8 @@ will adapt and instead of having a row with columns of windows, you will have
 a column with rows of windows. You can configure each monitor independently through
 available options.
 
+[Rows and Columns](https://github.com/user-attachments/assets/853d8117-99a0-4910-baa7-7a99e6acfe1e)
+
 
 ## Window Sizes
 
@@ -61,6 +63,8 @@ If you want to quickly fit a series of windows in a column or columns in a
 row, you can use `fit_size`. It will ignore fractions, and re-scale all the
 affected windows to fit in the screen.
 
+[cycle_size and fit_view](https://github.com/user-attachments/assets/3a034369-5246-4868-a696-bfeb044c7c0d)
+
 
 ## Focusing and Alignment
 
@@ -69,12 +73,16 @@ When you change window focus, *scroll* will always show the active
 window if it can. However, in some cases you may want to decide to align a
 window manually; `align` does exactly that.
 
+[align](https://github.com/user-attachments/assets/974f0916-0a0e-453a-bdb2-09e2674c9a7a)
+
 
 ## Overview Mode
 
 When you have too many windows in a workspace, it can be hard to know where
 things are. `scale_workspace overview` helps with that by creating a bird's eye view
 of the whole workspace.
+
+[Overview](https://github.com/user-attachments/assets/618fa129-f3db-4970-8dff-4d2ed7ed5ae2)
 
 
 ## Jump Mode
@@ -124,6 +132,8 @@ bindsym --whole-window $mod+Shift+button4 scale_workspace incr -0.05
 bindsym --whole-window $mod+Shift+button5 scale_workspace incr 0.05
 ```
 
+[scroll](https://github.com/user-attachments/assets/4a063bed-5c14-4c71-88a8-1ccfaa009ff5)
+
 
 ## Pins
 
@@ -133,6 +143,8 @@ in the rest of the available space. These windows may include terminals or
 documentation browser windows. You can pin a column to the right or left
 (top or bottom) of the monitor, and it will stay at that location until you
 call pin again.
+
+[Pin](https://github.com/user-attachments/assets/5d0ea318-832e-441c-be16-e0e6af278fc4)
 
 
 ## Moving Columns/Windows Around.
@@ -154,6 +166,8 @@ Overview and jump can be very helpful when you work in fullscreen mode. You
 can keep all your windows maximized or in full screen mode, and toggle
 overview on/off to see your full desktop, and quickly focus or change the
 position to a different application.
+
+[Full Screen](https://github.com/user-attachments/assets/fed977a0-8e87-4f94-bd68-7159578499ba)
 
 
 ## Touchpad Gestures
