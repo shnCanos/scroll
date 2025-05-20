@@ -262,6 +262,7 @@ void layout_overview_workspaces_toggle() {
 				double gapy = (uheight - rows * scale * height) / (rows + 1);
 				for (int c = 0; c < cols; ++c) {
 					struct sway_workspace *child = output->current.workspaces->items[j++];
+					child->layout.fullscreen = child->fullscreen;
 					child->layout.workspaces.x = round(left + gapx + c * (scale * width + gapx));
 					child->layout.workspaces.y = round(top + gapy + r * (scale * height + gapy));
 					child->layout.workspaces.width = ceil(scale * width);
@@ -269,6 +270,10 @@ void layout_overview_workspaces_toggle() {
 					child->layout.workspaces.scale = scale;
 					child->layers.tiling->node.data = child;
 					node_set_dirty(&child->node);
+					if (child->fullscreen) {
+						container_set_fullscreen(child->fullscreen, FULLSCREEN_NONE);
+						arrange_root();
+					}
 					for (int f = 0; f < child->floating->length; ++f) {
 						struct sway_container *con = child->floating->items[f];
 						con->scene_tree->node.data = child;
@@ -280,6 +285,12 @@ void layout_overview_workspaces_toggle() {
 				struct sway_workspace *child = output->current.workspaces->items[j];
 				child->layers.tiling->node.data = NULL;
 				node_set_dirty(&child->node);
+				if (child->layout.fullscreen) {
+					struct sway_seat *seat = input_manager_current_seat();
+					struct sway_container * focus = seat_get_focused_container(seat);
+					container_set_fullscreen(focus, FULLSCREEN_WORKSPACE);
+					arrange_root();
+				}
 				for (int f = 0; f < child->floating->length; ++f) {
 					struct sway_container *con = child->floating->items[f];
 					con->scene_tree->node.data = NULL;
