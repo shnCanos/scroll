@@ -753,9 +753,11 @@ animations {
 *scroll* adds IPC events you can use to create a module for your favorite
 desktop bar.
 
-See `include/ipc.h` for `IPG_GET_SCROLLER` and  `IPC_EVENT_SCROLLER`
+See `include/ipc.h` for `IPG_GET_SCROLLER`, `IPC_EVENT_SCROLLER`,
+`IPG_GET_TRAILS` and `IPC_EVENT_TRAILS`.
 
-You can get data for mode/mode modifiers, overview and scale mode.
+You can get data for mode/mode modifiers, overview and scale mode as well as
+trails and whether a view has an active trailmark.
 
 ``` c
 json_object *ipc_json_describe_scroller(struct sway_workspace *workspace) {
@@ -814,5 +816,34 @@ void ipc_event_scroller(const char *change, struct sway_workspace *workspace) {
 	const char *json_string = json_object_to_json_string(json);
 	ipc_send_event(json_string, IPC_EVENT_SCROLLER);
 	json_object_put(json);
+}
+
+json_object *ipc_json_describe_trails() {
+	json_object *object = json_object_new_object();
+
+	json_object_object_add(object, "length", json_object_new_int(layout_trails_length()));
+	json_object_object_add(object, "active", json_object_new_int(layout_trails_active()));
+	json_object_object_add(object, "trail_length", json_object_new_int(layout_trails_active_length()));
+
+	return object;
+}
+
+void ipc_event_trails() {
+	if (!ipc_has_event_listeners(IPC_EVENT_TRAILS)) {
+		return;
+	}
+	sway_log(SWAY_DEBUG, "Sending trails event");
+
+	json_object *json = json_object_new_object();
+	json_object_object_add(json, "trails", ipc_json_describe_trails());
+
+	const char *json_string = json_object_to_json_string(json);
+	ipc_send_event(json_string, IPC_EVENT_TRAILS);
+	json_object_put(json);
+}
+
+static void ipc_json_describe_view(struct sway_container *c, json_object *object) {
+...
+	json_object_object_add(object, "trailmark", json_object_new_boolean(layout_trails_trailmarked(c->view)));
 }
 ```
