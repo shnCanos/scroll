@@ -2228,3 +2228,217 @@ void layout_selection_set(struct sway_container *container, bool selected) {
 	container->selected = selected;
 	node_set_dirty(&container->node);
 }
+
+struct sway_trails {
+	list_t *trails;
+	int active;
+};
+
+static struct sway_trails *trails = NULL;
+
+struct sway_trail {
+	list_t *marks;
+	int active;
+};
+
+static struct sway_trail *trail_create() {
+	struct sway_trail *trail = calloc(1, sizeof(struct sway_trail));
+	trail->marks = create_list();
+	trail->active = -1;
+	return trail;
+}
+
+static void trail_destroy(struct sway_trail *trail) {
+	list_free(trail->marks);
+	free(trail);
+}
+
+static void trail_clear(struct sway_trail *trail) {
+	list_free(trail->marks);
+	trail->marks = create_list();
+	trail->active = -1;
+}
+
+static void trail_to_selection(struct sway_trail *trail) {
+	for (int i = 0; i < trail->marks->length; ++i) {
+		struct sway_view *view = trail->marks->items[i];
+		layout_selection_set(view->container, true);
+	}
+}
+
+void layout_trail_new() {
+	if (trails == NULL) {
+		trails = (struct sway_trails *) calloc(1, sizeof(struct sway_trails));
+		trails->trails = create_list();
+	}
+	trails->active = trails->trails->length;
+	struct sway_trail *trail = trail_create();
+	list_add(trails->trails, trail);
+	ipc_event_trails();
+}
+
+void layout_trail_next() {
+	if (trails == NULL || trails->trails->length <= 1) {
+		return;
+	}
+	trails->active = trails->active == trails->trails->length - 1 ? 0 : trails->active + 1;
+	ipc_event_trails();
+}
+
+void layout_trail_prev() {
+	if (trails == NULL || trails->trails->length <= 1) {
+		return;
+	}
+	trails->active = trails->active == 0 ? trails->trails->length - 1 : trails->active - 1;
+	ipc_event_trails();
+}
+
+void layout_trail_delete() {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	trail_destroy(trails->trails->items[trails->active]);
+	list_del(trails->trails, trails->active);
+	if (trails->trails->length == 0) {
+		trails->active = -1;
+	} else if (trails->active > 0) {
+		trails->active--;
+	}
+	ipc_event_trails();
+}
+
+void layout_trail_clear() {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	trail_clear(trails->trails->items[trails->active]);
+	ipc_event_trails();
+}
+
+void layout_trail_to_selection() {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	trail_to_selection(trails->trails->items[trails->active]);
+}
+
+void layout_trailmark_toggle(struct sway_view *view) {
+	if (trails == NULL || trails->active == -1) {
+		layout_trail_new();
+	}
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	int idx = list_find(trail->marks, view);
+	if (idx < 0) {
+		list_add(trail->marks, view);
+		trail->active = trail->marks->length - 1;
+	} else {
+		list_del(trail->marks, idx);
+		if (trail->marks->length == 0) {
+			trail->active = -1;
+		} else if (trail->active > 0) {
+			trail->active--;
+		}
+	}
+	ipc_event_trails();
+	ipc_event_window(view->container, "trailmark");
+}
+
+static void trails_focus_view() {
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	if (trail->active < 0) {
+		return;
+	}
+	struct sway_view *view = trail->marks->items[trail->active];
+	struct sway_seat *seat = input_manager_current_seat();
+	seat_set_focus_container(seat, view->container);
+	seat_consider_warp_to_focus(seat);
+}
+
+void layout_trailmark_next() {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	if (trail->active == -1) {
+		return;
+	}
+	trail->active = trail->active == trail->marks->length - 1 ? 0 : trail->active + 1;
+	trails_focus_view();
+}
+
+void layout_trailmark_prev() {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	if (trail->active == -1) {
+		return;
+	}
+	trail->active = trail->active == 0 ? trail->marks->length - 1 : trail->active - 1;
+	trails_focus_view();
+}
+
+void layout_trail_remove_view(struct sway_view *view) {
+	if (trails == NULL || trails->active == -1) {
+		return;
+	}
+	bool update = false;
+	for (int i = 0; i < trails->trails->length; ++i) {
+		struct sway_trail *trail = trails->trails->items[i];
+		for (int j = 0; j < trail->marks->length; ++j) {
+			struct sway_view *v = trail->marks->items[j];
+			if (v == view) {
+				list_del(trail->marks, j);
+				if (trail->active == j) {
+					if (trail->marks->length == 0) {
+						trail->active = -1;
+					} else if (trail->active > 0) {
+						trail->active--;
+					}
+				}
+				update = true;
+				break;
+			}
+		}
+	}
+	if (update) {
+		ipc_event_trails();
+	}
+}
+
+// For IPC events
+int layout_trails_length() {
+	if (trails == NULL) {
+		return 0;
+	}
+	return trails->trails->length;
+}
+
+int layout_trails_active() {
+	if (trails == NULL) {
+		return 0;
+	}
+	return trails->active + 1;
+}
+
+int layout_trails_active_length() {
+	if (trails == NULL || trails->active == -1) {
+		return 0;
+	}
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	return trail->marks->length;
+}
+
+bool layout_trails_trailmarked(struct sway_view *view) {
+	if (trails == NULL || trails->active == -1 || view == NULL) {
+		return false;
+	}
+	struct sway_trail *trail = trails->trails->items[trails->active];
+	for (int i = 0; i < trail->marks->length; ++i) {
+		struct sway_view *v = trail->marks->items[i];
+		if (v == view) {
+			return true;
+		}
+	}
+	return false;
+}

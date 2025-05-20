@@ -38,6 +38,10 @@ struct swaybar {
 	bool scroll_center_vertical;
 	char *scroll_reorder;
 
+	int trails_length;
+	int trails_active;
+	int trail_length;
+
 	struct wl_display *display;
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;

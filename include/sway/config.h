@@ -391,6 +391,7 @@ struct bar_config {
 	bool strip_workspace_name;
 	bool binding_mode_indicator;
 	bool scroller_indicator;
+	bool trails_indicator;
 	bool verbose;
 	struct side_gaps gaps;
 	int status_padding;

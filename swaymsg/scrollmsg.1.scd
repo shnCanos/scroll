@@ -103,6 +103,9 @@ _scrollmsg_ [options...] [message]
 *get\_scroller*
 	Gets the scroll modifiers for the current workspace.
 
+*get\_trails*
+	Gets the trails information.
+
 *send\_tick*
 	Sends a tick event to all subscribed clients.
 

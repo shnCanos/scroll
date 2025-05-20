@@ -25,6 +25,7 @@ enum ipc_command_type {
 
 	// scroll-specific command types
 	IPC_GET_SCROLLER = 120,
+	IPC_GET_TRAILS = 121,
 
 	// Events sent from sway to clients. Events have the highest bits set.
 	IPC_EVENT_WORKSPACE = ((1<<31) | 0),
@@ -42,6 +43,7 @@ enum ipc_command_type {
 
 	// scroll-specific event types
 	IPC_EVENT_SCROLLER = ((1<<31) | 30),
+	IPC_EVENT_TRAILS = ((1<<31) | 31),
 };
 
 #endif

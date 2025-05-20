@@ -471,9 +471,63 @@ selection <toggle|reset|workspace|move>
 ```
 
 
+### Trails and Trailmarks
+
+Trails and Trailmarks are a concept borrowed from [trailblazer.nvim](https://github.com/LeonHeidelbach/trailblazer.nvim).
+
+A **trailmark** is like an anonymous mark on a window, and a **trail** is a
+collection of trailmarks. You can have as many trails as you want, and as many
+trailmarks as you want in any trail. Each window can be in as many trails
+as you want, too.
+
+Creating your first trailmark (`trailmark toggle`) will create a trail. From
+then on, every trailmark you create will be assigned to that trail. You can
+navigate back (`trailmark prev`) and forth (`trailmark next`) within the
+collection of trailmarks contained in the trail.
+
+To create a new trail, use `trail new`. With `trail prev` and `trail next`
+you can navigate trails, changing the active one. The active trail will be
+the one used for the trailmark command (`toggle`, `next`, and `prev`).
+
+Clear all the trailmarks of the active trail using `trail clear`, or delete
+the trail from the list with `trail delete`.
+
+`trail to_selection` creates a selection list from the trailmarks in the active
+trail. You can use that selection for example to move all the windows to a new
+workspace using `selection move`.
+
+*scroll* generates IPC signals for trail/trailmark events. See the man page
+or the example implementation in *scrollbar* if you want to use these signals
+to display information on your desktop bar.
+
+Read the example config for an example on how to set bindings for the trail
+and trailmark commands.
+
+``` config
+mode "trailmark" {
+    bindsym bracketright trailmark next
+    bindsym bracketleft trailmark prev
+    bindsym semicolon trailmark toggle; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+semicolon mode "trailmark"
+
+mode "trail" {
+    bindsym bracketright trail next
+    bindsym bracketleft trail prev
+    bindsym semicolon trail new; mode default
+    bindsym d trail delete; mode default
+    bindsym c trail clear; mode default
+    bindsym insert trail to_selection; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+Shift+semicolon mode "trail"
+```
+
+
 ### Tips for Using Marks
 
-*scroll* supports sway's mark based navigation. I use these scripts and
+*scroll* also supports sway's mark based navigation. I use these scripts and
 key bindings:
 
 ``` config

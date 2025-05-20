@@ -374,6 +374,25 @@ mode "fit_size" {
 }
 bindsym $mod+w mode "fit_size"
 
+mode "trailmark" {
+    bindsym bracketright trailmark next
+    bindsym bracketleft trailmark prev
+    bindsym semicolon trailmark toggle; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+semicolon mode "trailmark"
+
+mode "trail" {
+    bindsym bracketright trail next
+    bindsym bracketleft trail prev
+    bindsym semicolon trail new; mode default
+    bindsym d trail delete; mode default
+    bindsym c trail clear; mode default
+    bindsym insert trail to_selection; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+Shift+semicolon mode "trail"
+
 #
 # Utilities:
 #

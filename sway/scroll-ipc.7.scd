@@ -87,6 +87,9 @@ supported. *For all replies, any properties not listed are subject to removal.*
 |- 120
 :  GET_SCROLLER
 :  Get the list of scroller properties
+|- 121
+:  GET_TRAILS
+:  Get information about trails
 
 ## 0. RUN_COMMAND
 
@@ -1522,6 +1525,38 @@ An object called "scroller", containing the following properties:
 }
 ```
 
+## 121. GET_TRAILS
+
+*MESSAGE*++
+Retrieve trails information
+
+*REPLY*++
+An object called "trails", containing the following properties:
+
+[- *PROPERTY*
+:- *DATA TYPE*
+:- *DESCRIPTION*
+|- length
+:  integer
+:  Number of trails
+|- active
+:  integer
+:  Active trail
+|- trail_length
+:  integer
+:  Number of trailmarks in the active trail
+
+*Example Reply:*
+```
+{
+	"trails": {
+		"length": 1,
+		"active": 1,
+		"trail_length": 3
+	}
+}
+```
+
 
 # EVENTS
 
@@ -1565,6 +1600,12 @@ available:
 |- 0x80000015
 :  input
 :  Sent when something related to input devices changes
+|- 0x80000030
+:  scroller
+:  Sent when a scroller property for the current workspace changes
+|- 0x80000031
+:  trails
+:  Sent when there is a change in trails
 
 
 ## 0x80000000. WORKSPACE
@@ -2003,6 +2044,20 @@ The following change types are currently available:
 :  Changed mode for center vertically
 
 For a description of the properties, see _GET_SCROLLER_
+
+## 0x80000031. TRAILS
+
+Sent when there is a change in trails. The event
+consists of a single object with the following properties:
+
+[- *PROPERTY*
+:- *DATA TYPE*
+:- *DESCRIPTION*
+|- trails
+:  object
+:  An object that contains the trails information
+
+For a description of the properties in trails, see _GET_TRAILS_
 
 
 # SEE ALSO

@@ -160,6 +160,14 @@ multiple selection. You can control more precisely where the selection will
 end up by changing mode modifiers (after, before, end,...)
 
 
+## Trails and Trailmarks
+
+Aside from sway's marks, *scroll* supports a special kind of anonymous mark
+called a trailmark. You can create trails and trailmarks and use them to
+navigate your favorite windows. See the README and the man page for more
+details.
+
+
 ## Working in Full Screen Mode
 
 Overview and jump can be very helpful when you work in fullscreen mode. You

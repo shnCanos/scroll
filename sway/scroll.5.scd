@@ -641,6 +641,30 @@ set|plus|minus|toggle <amount>
 
 	The default format is "%title".
 
+*trail* new|prev|next|delete|clear|to_selection
+	Manages trails. A _trail_ is a path of trailmarks. A _trailmark_ is an
+	anonymous mark. You can create as many trailmarks as you want in a trail,
+	and as many trails as you want. A view can belong to any number of trails.
+
+	_new_: creates a new trail and makes it the active one.
+	_prev_: makes the previous trail on the list the active one.
+	_next_: makes the next trail on the list the active one.
+	_delete_: deletes the active trail from the list.
+	_clear_: clears all the trailmarks in the active trail.
+	_to_selection_: creates a _selection_ with the trailmarks of the active
+	trail. See *selection* to learn what you can do with them.
+
+*trailmark* toggle|prev|next
+	When you want to navigate to certain windows frequently, you can assign them
+	a trailmark. A trailmark will become an anonymous mark assigned to a trail,
+	and you can navigate the trailmarks of a trail using _prev_ and _next_. This
+	way you can move between frequently used application windows.
+
+	_toggle_: assigns/removes the trailmark from the active window.
+	_prev_: focus the previous trailmarked window on the active trail.
+	_next_: focus the next trailmarked window on the active trail.
+
+
 ## Config or runtime commands
 The following commands may be used either in the configuration file or at
 runtime.

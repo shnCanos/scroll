@@ -22,6 +22,7 @@
 #include "sway/input/seat.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 #include "sway/desktop/idle_inhibit_v1.h"
+#include "sway/tree/layout.h"
 
 #if WLR_HAS_LIBINPUT_BACKEND
 #include <wlr/backend/libinput.h>
@@ -671,6 +672,8 @@ static void ipc_json_describe_view(struct sway_container *c, json_object *object
 		json_object_object_add(object, "window_properties", window_props);
 	}
 #endif
+
+	json_object_object_add(object, "trailmark", json_object_new_boolean(layout_trails_trailmarked(c->view)));
 }
 
 static void ipc_json_describe_container(struct sway_container *c, json_object *object) {
@@ -1277,6 +1280,8 @@ json_object *ipc_json_describe_bar_config(struct bar_config *bar) {
 			json_object_new_boolean(bar->binding_mode_indicator));
 	json_object_object_add(json, "scroller_indicator",
 			json_object_new_boolean(bar->scroller_indicator));
+	json_object_object_add(json, "trails_indicator",
+			json_object_new_boolean(bar->trails_indicator));
 	json_object_object_add(json, "verbose",
 			json_object_new_boolean(bar->verbose));
 	json_object_object_add(json, "pango_markup",
@@ -1511,3 +1516,12 @@ json_object *ipc_json_describe_scroller(struct sway_workspace *workspace) {
 	return object;
 }
 
+json_object *ipc_json_describe_trails() {
+	json_object *object = json_object_new_object();
+
+	json_object_object_add(object, "length", json_object_new_int(layout_trails_length()));
+	json_object_object_add(object, "active", json_object_new_int(layout_trails_active()));
+	json_object_object_add(object, "trail_length", json_object_new_int(layout_trails_active_length()));
+
+	return object;
+}

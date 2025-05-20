@@ -911,6 +911,8 @@ void view_unmap(struct sway_view *view) {
 		view->foreign_toplevel = NULL;
 	}
 
+	layout_trail_remove_view(view);
+
 	struct sway_container *parent = view->container->pending.parent;
 	struct sway_workspace *ws = view->container->pending.workspace;
 	container_begin_destroy(view->container);

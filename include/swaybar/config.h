@@ -40,6 +40,7 @@ struct swaybar_config {
 	bool wrap_scroll;
 	bool workspace_buttons;
 	bool scroller_indicator;
+	bool trails_indicator;
 	uint32_t workspace_min_width;
 	list_t *bindings;
 	struct wl_list outputs; // config_output::link

@@ -187,4 +187,25 @@ bool layout_selection_move(struct sway_workspace *workspace);
 bool layout_selection_enabled(struct sway_container *container);
 void layout_selection_set(struct sway_container *container, bool selected);
 
+// Trails and Trailmarks
+
+void layout_trail_new();
+void layout_trail_next();
+void layout_trail_prev();
+void layout_trail_delete();
+void layout_trail_clear();
+void layout_trail_to_selection();
+void layout_trailmark_toggle(struct sway_view *view);
+void layout_trailmark_next();
+void layout_trailmark_prev();
+
+// Call when unmapping a view to avoid having dangling pointers
+void layout_trail_remove_view(struct sway_view *view);
+
+// For TRAIL IPC event
+int layout_trails_length();
+int layout_trails_active();
+int layout_trails_active_length();
+bool layout_trails_trailmarked(struct sway_view *view);
+
 #endif // _SWAY_LAYOUT_H
