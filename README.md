@@ -500,6 +500,9 @@ workspace using `selection move`.
 or the example implementation in *scrollbar* if you want to use these signals
 to display information on your desktop bar.
 
+There is also a reference implementation for the *scroll* modules in
+[gtkshell](https://github.com/dawsers/gtkshell).
+
 Read the example config for an example on how to set bindings for the trail
 and trailmark commands.
 
@@ -758,6 +761,11 @@ See `include/ipc.h` for `IPG_GET_SCROLLER`, `IPC_EVENT_SCROLLER`,
 
 You can get data for mode/mode modifiers, overview and scale mode as well as
 trails and whether a view has an active trailmark.
+
+For anyone interested in creating modules for popular desktop bars, there is a
+reference implementation for the *scroll* modules in
+[gtkshell](https://github.com/dawsers/gtkshell).
+
 
 ``` c
 json_object *ipc_json_describe_scroller(struct sway_workspace *workspace) {
