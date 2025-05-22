@@ -29,8 +29,15 @@ static struct cmd_results *set_size_tiled(uint32_t axis, double fraction) {
 	}
 
 	enum sway_container_layout layout = layout_get_type(config->handler_context.workspace);
+	bool horizontal = is_horizontal(axis);
+	if ((layout == L_HORIZ && horizontal) || (layout == L_VERT && !horizontal)) {
+		if (current->pending.parent) {
+			// Choose parent if not at workspace level yet
+			current = current->pending.parent;
+		}
+	}
 
-	if (is_horizontal(axis)) {
+	if (horizontal) {
 		current->width_fraction = fraction;
 		current->free_size = false;
 		if (layout == L_HORIZ) {
