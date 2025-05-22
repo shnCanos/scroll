@@ -367,7 +367,7 @@ set|plus|minus|toggle <amount>
 	the per-output *allow_tearing* setting. See *scroll-output*(5) 
 	for further details.
 
-*move* left|right|up|down|beinning}end [<px> px] [nomode]
+*move* left|right|up|down|beinning|end [<px> px] [nomode]
 	Moves the focused container in the direction specified. The optional _px_
 	argument specifies how many pixels to move the container if it is floating.
 	If unspecified,	the default is 10 pixels. Pixels are ignored when moving
@@ -871,8 +871,15 @@ runtime.
 	*client.pinned*
 		A pinned column/row.
 
+	*client.pinned_focused*
+		A pinned column/row that is currently focused.
+
 	*client.selected*
 		A selected view/container. See the command *selection*.
+
+	*client.selected_focused*
+		A selected view/container that is currently focused. See the command
+		*selection*.
 
 	*client.placeholder*
 		Ignored (present for i3 compatibility).
@@ -953,12 +960,24 @@ The default colors are:
 :  #ffffff
 :  #efeebe
 :  #beeeef
+|  *pinned_focused*
+:  #6e8eef
+:  #000000
+:  #ffffff
+:  #efeebe
+:  #6e8eef
 |  *selected*
 :  #009000
 :  #000000
 :  #ffffff
 :  #00b000
 :  #00b000
+|  *selected_focused*
+:  #009090
+:  #000000
+:  #ffffff
+:  #00b000
+:  #009090
 |  *placeholder*
 :  #000000
 :  #0c0c0c

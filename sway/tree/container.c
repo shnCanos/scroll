@@ -235,9 +235,17 @@ static struct border_colors *container_get_current_colors(
 	if (urgent) {
 		colors = &config->border_colors.urgent;
 	} else if (layout_selection_enabled(con)) {
-		colors = &config->border_colors.selected;
+		if (con->current.focused || container_is_current_parent_focused(con)) {
+			colors = &config->border_colors.selected_focused;
+		} else {
+			colors = &config->border_colors.selected;
+		}
 	} else if (pinned) {
-		colors = &config->border_colors.pinned;
+		if (con->current.focused || container_is_current_parent_focused(con)) {
+			colors = &config->border_colors.pinned_focused;
+		} else {
+			colors = &config->border_colors.pinned;
+		}
 	} else if (con->current.focused || container_is_current_parent_focused(con)) {
 		colors = &config->border_colors.focused;
 	} else if (config->has_focused_tab_title && container_has_focused_child(con)) {

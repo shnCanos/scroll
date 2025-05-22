@@ -54,6 +54,9 @@ man 5 scroll
 man 1 scroll
 man 1 scrollmsg
 man 7 scroll-ipc
+man scroll-output
+man scroll-bar
+man scrollnag
 ```
 
 ## Building and Installing

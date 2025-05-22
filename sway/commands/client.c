@@ -81,9 +81,19 @@ struct cmd_results *cmd_client_pinned(int argc, char **argv) {
 			&config->border_colors.pinned, "#efeebeff");
 }
 
+struct cmd_results *cmd_client_pinned_focused(int argc, char **argv) {
+	return handle_command(argc, argv, "client.pinned_focused",
+			&config->border_colors.pinned_focused, "#efeebeff");
+}
+
 struct cmd_results *cmd_client_selected(int argc, char **argv) {
 	return handle_command(argc, argv, "client.selected",
 			&config->border_colors.selected, "#00b000ff");
+}
+
+struct cmd_results *cmd_client_selected_focused(int argc, char **argv) {
+	return handle_command(argc, argv, "client.selected_focused",
+			&config->border_colors.selected_focused, "#00b000ff");
 }
 
 struct cmd_results *cmd_client_noop(int argc, char **argv) {

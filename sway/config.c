@@ -397,11 +397,23 @@ static void config_defaults(struct sway_config *config) {
 	color_to_rgba(config->border_colors.pinned.indicator, 0xEFEEBEFF);
 	color_to_rgba(config->border_colors.pinned.child_border, 0xBEEEEFFF);
 
+	color_to_rgba(config->border_colors.pinned_focused.border, 0x6E8EEFFF);
+	color_to_rgba(config->border_colors.pinned_focused.background, 0x000000FF);
+	color_to_rgba(config->border_colors.pinned_focused.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.pinned_focused.indicator, 0xEFEEBEFF);
+	color_to_rgba(config->border_colors.pinned_focused.child_border, 0x6E8EEFFF);
+
 	color_to_rgba(config->border_colors.selected.border, 0x009000FF);
 	color_to_rgba(config->border_colors.selected.background, 0x000000FF);
 	color_to_rgba(config->border_colors.selected.text, 0xFFFFFFFF);
 	color_to_rgba(config->border_colors.selected.indicator, 0x00B000FF);
 	color_to_rgba(config->border_colors.selected.child_border, 0x00B000FF);
+
+	color_to_rgba(config->border_colors.selected_focused.border, 0x009090FF);
+	color_to_rgba(config->border_colors.selected_focused.background, 0x000000FF);
+	color_to_rgba(config->border_colors.selected_focused.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.selected_focused.indicator, 0x00B000FF);
+	color_to_rgba(config->border_colors.selected_focused.child_border, 0x009090FF);
 
 	color_to_rgba(config->border_colors.placeholder.border, 0x000000FF);
 	color_to_rgba(config->border_colors.placeholder.background, 0x0C0C0CFF);
