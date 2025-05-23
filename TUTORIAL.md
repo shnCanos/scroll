@@ -93,11 +93,12 @@ it overlays a label on each window (or workspace if you use `jump workspaces`.
 Pressing all the numbers of a label, changes focus to the selected window or
 workspace.
 
-1. Assign a key binding to `jump`, for this tutorial:
+1. Assign key bindings to `jump`, for this tutorial:
 
 ``` config
-bindsym --no-repeat $mod+slash jump
-bindsym --no-repeat $mod+Shift+slash jump workspaces
+    bindsym --no-repeat $mod+slash jump
+    bindsym --no-repeat $mod+Shift+slash jump container
+    bindsym --no-repeat $mod+Ctrl+slash jump workspaces
 ```
 
 2. Pressing your `mod` key and `/` will show an overview of your windows on
@@ -106,9 +107,14 @@ bindsym --no-repeat $mod+Shift+slash jump workspaces
    focus to.
 4. `jump` will exit, and the focus will be on the window you selected.
 
-If instead you press `mod`, `Shift` and `/`, you will see a bird's eye view of
+If instead you press `mod`, `Ctrl` and `/`, you will see a bird's eye view of
 all your workspaces. Pressing a combination of keys, like in the example
 above, will take you to the chosen workspace.
+
+If your focus is on a column with more than one window, you can press `mod`,
+`Shift` and `/`, and you will get a jump overview of only all the windows in that
+column instead.
+
 
 ## Content Scaling
 
