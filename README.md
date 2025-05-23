@@ -323,14 +323,23 @@ on the overlaid label.
 
 You can call `jump` from any mode: overview or normal mode.
 
-There is also a special `jump workspaces` mode where you will see a preview of
-all the available workspaces on their respective monitor. You can use this
-mode to preview and quickly jump to any workspace.
+There are also two special `jump` modes:
+
+`jump workspaces` will show you a preview of all the available workspaces on
+their respective monitor. You can use this mode to preview and quickly jump
+to any workspace.
+
+`jump container` will show you all the windows in the active column
+(horizontal layout) or all the windows in the active row (vertical layout), so
+you can quickly jump to any of them. It is a good substitute for tabs, because
+you also see the content of the windows.
 
 ``` config
     bindsym --no-repeat $mod+slash jump
-    bindsym --no-repeat $mod+Shift+slash jump workspaces
+    bindsym --no-repeat $mod+Shift+slash jump container
+    bindsym --no-repeat $mod+Ctrl+slash jump workspaces
 ```
+
 
 ### Content Scaling
 

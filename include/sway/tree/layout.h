@@ -149,6 +149,7 @@ void layout_toggle_pin(struct sway_scroller *layout);
 
 void layout_jump();
 void layout_jump_workspaces();
+void layout_jump_container(struct sway_container *container);
 
 // Gestures
 // Begin scrolling swipe gesture. Return true if scrolling, false if there are

@@ -1178,7 +1178,8 @@ static void switch_workspace(struct sway_workspace *workspace) {
 	seat_consider_warp_to_focus(seat);
 }
 
-static void container_toggle_jump_decoration(struct sway_container *con, char *text) {
+static void container_toggle_jump_decoration(struct sway_container *con, char *text,
+		double width, double height) {
 	if (!text) {
 		if (con->jump.text) {
 			sway_scene_node_destroy(con->jump.text->node);
@@ -1195,10 +1196,10 @@ static void container_toggle_jump_decoration(struct sway_container *con, char *t
 	double jscale = config->jump_labels_scale;
 	struct sway_workspace *workspace = con->pending.workspace;
 	float wscale = workspace && layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f;
-	float scale = fmin(con->pending.width / con->jump.text->width, con->pending.height / con->jump.text->height);
+	float scale = fmin(width / con->jump.text->width, height / con->jump.text->height);
 	sway_text_node_scale(con->jump.text, jscale * scale * wscale);
-	int x = 0.5 * wscale * (con->pending.width - con->jump.text->width * jscale * scale);
-	int y = 0.5 * wscale * (con->pending.height - con->jump.text->height * jscale * scale);
+	int x = 0.5 * wscale * (width - con->jump.text->width * jscale * scale);
+	int y = 0.5 * wscale * (height - con->jump.text->height * jscale * scale);
 	sway_scene_node_set_position(&con->jump.tree->node, x, y);
 	sway_scene_node_set_enabled(&con->jump.tree->node, true);
 	node_set_dirty(&con->node);
@@ -1206,7 +1207,6 @@ static void container_toggle_jump_decoration(struct sway_container *con, char *t
 
 struct jump_data {
 	list_t *workspaces;
-	bool jumping;
 	uint32_t keys_pressed;
 	uint32_t nkeys;
 	uint32_t window_number;
@@ -1289,7 +1289,7 @@ static void jump_handle_keyboard_key(struct sway_keyboard *keyboard,
 			struct sway_container *container = workspace->tiling->items[i];
 			for (int j = 0; j < container->pending.children->length; ++j) {
 				struct sway_container *view = container->pending.children->items[j];
-				container_toggle_jump_decoration(view, NULL);
+				container_toggle_jump_decoration(view, NULL, 0, 0);
 			}
 		}
 	}
@@ -1365,7 +1365,7 @@ void layout_jump() {
 			for (int j = 0; j < container->pending.children->length; ++j) {
 				struct sway_container *view = container->pending.children->items[j];
 				char *label = generate_label(n++, config->jump_labels_keys, nkeys);
-				container_toggle_jump_decoration(view, label);
+				container_toggle_jump_decoration(view, label, view->pending.width, view->pending.height);
 				free(label);
 			}
 		}
@@ -1486,6 +1486,147 @@ void layout_jump_workspaces() {
 
 	override_keyboard(true, jump_workspaces_handle_keyboard_key, jump_data);
 }
+
+struct jump_container_data {
+	struct sway_container *container;
+	bool jumping;
+	uint32_t keys_pressed;
+	uint32_t nkeys;
+	uint32_t window_number;
+	uint32_t nwindows;
+};
+
+static void container_jump(struct jump_container_data *jump_data) {
+	struct sway_container *container = jump_data->container;
+	struct sway_workspace *workspace = container->pending.workspace;
+	static enum sway_layout_reorder reorder = REORDER_AUTO;
+	if (jump_data->jumping) {
+		container->jump.jumping = false;
+		layout_modifiers_set_reorder(workspace, reorder);
+		for (int i = 0; i < container->pending.children->length; ++i) {
+			struct sway_container *con = container->pending.children->items[i];
+			container_toggle_jump_decoration(con, NULL, 0, 0);
+		}
+	} else {
+		jump_data->jumping = true;
+		container->jump.jumping = true;
+		reorder = layout_modifiers_get_reorder(workspace);
+		layout_modifiers_set_reorder(workspace, REORDER_LAZY);
+		if (layout_get_type(workspace) == L_HORIZ) {
+			double y = workspace->y;
+			double height = 0.0;
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				height += con->pending.height;
+			}
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				con->pending.y = y;
+				sway_scene_node_raise_to_top(&con->scene_tree->node);
+				y += con->pending.height / height * workspace->height;
+			}
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				double cheight = con->pending.height / height * workspace->height;
+				char *label = generate_label(i, config->jump_labels_keys, jump_data->nkeys);
+				container_toggle_jump_decoration(con, label, container->pending.width, cheight);
+				free(label);
+			}
+		} else {
+			double x = workspace->x;
+			double width = 0.0;
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				width += con->pending.width;
+			}
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				con->pending.x = x;
+				sway_scene_node_raise_to_top(&con->scene_tree->node);
+				x += con->pending.width / width * workspace->width;
+			}
+			for (int i = 0; i < container->pending.children->length; ++i) {
+				struct sway_container *con = container->pending.children->items[i];
+				double cwidth = con->pending.width / width * workspace->width;
+				char *label = generate_label(i, config->jump_labels_keys, jump_data->nkeys);
+				container_toggle_jump_decoration(con, label, cwidth, container->pending.height);
+				free(label);
+			}
+		}
+	}
+	node_set_dirty(&container->node);
+
+	transaction_commit_dirty();
+}
+
+static void jump_container_handle_keyboard_key(struct sway_keyboard *keyboard,
+		struct wlr_keyboard_key_event *event, void *data) {
+	struct jump_container_data *jump_data = data;
+
+	uint32_t keycode = event->keycode + 8; // Because to xkbcommon it's +8 from libinput
+	const xkb_keysym_t keysym = xkb_state_key_get_one_sym(keyboard->wlr->xkb_state, keycode);
+
+	if (event->state != WL_KEYBOARD_KEY_STATE_PRESSED) {
+		return;
+	}
+	// Check if key is valid, otherwise exit
+	bool valid = false;
+	for (uint32_t i = 0; i < strlen(config->jump_labels_keys); ++i) {
+		char keyname[2] = { config->jump_labels_keys[i], 0x0 };
+		xkb_keysym_t key = xkb_keysym_from_name(keyname, XKB_KEYSYM_NO_FLAGS);
+		if (key && key == keysym) {
+			jump_data->window_number = jump_data->window_number * strlen(config->jump_labels_keys) + i;
+			valid = true;
+			break;
+		}
+	}
+	bool focus = false;
+	if (valid) {
+		jump_data->keys_pressed++;
+		if (jump_data->keys_pressed == jump_data->nkeys) {
+			if (jump_data->window_number < jump_data->nwindows) {
+				focus = true;
+			}
+		} else {
+			return;
+		}
+	}
+
+	container_jump(jump_data);
+
+	if (focus) {
+		struct sway_container *view = jump_data->container->pending.children->items[jump_data->window_number];
+		struct sway_seat *seat = input_manager_current_seat();
+		seat_set_focus_container(seat, view);
+		seat_consider_warp_to_focus(seat);
+	}
+
+	free(jump_data);
+	transaction_commit_dirty();
+	override_keyboard(false, NULL, NULL);
+}
+
+void layout_jump_container(struct sway_container *container) {
+	if (container->pending.parent) {
+		container = container->pending.parent;
+	}
+	if (container->pending.children->length <= 1) {
+		return;
+	}
+	struct jump_container_data *jump_data = calloc(1, sizeof(struct jump_container_data));
+	jump_data->container = container;
+
+	uint32_t ncontainers = container->pending.children->length;
+	uint32_t nkeys = ceil(log10(ncontainers) / log10(strlen(config->jump_labels_keys)));
+	jump_data->nwindows = ncontainers;
+	jump_data->nkeys = nkeys;
+	jump_data->jumping = false;
+
+	container_jump(jump_data);
+
+	override_keyboard(true, jump_container_handle_keyboard_key, jump_data);
+}
+
 
 // When the workspace is scaled, offsets are not valid to check cursor or bounds,
 // because offsets and sizes are not scaled. We need to re-compute them using the

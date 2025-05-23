@@ -57,8 +57,18 @@ struct cmd_results *cmd_jump(int argc, char **argv) {
 				"Can't run this command while there are no outputs connected.");
 	}
 
-	if (argc > 0 && strcasecmp(argv[0], "workspaces") == 0) {
-		layout_jump_workspaces();
+	if (argc > 0) {
+		if(strcasecmp(argv[0], "workspaces") == 0) {
+			layout_jump_workspaces();
+		} else if (strcasecmp(argv[0], "container") == 0) {
+			struct sway_container *con = config->handler_context.container;
+			if (!con) {
+				return cmd_results_new(CMD_INVALID, "No container selected.");
+			}
+			layout_jump_container(con);
+		} else {
+			return cmd_results_new(CMD_INVALID, "Invalid argument %s for command 'jump'.", argv[0]);
+		}
 	} else {
 		layout_jump();
 	}

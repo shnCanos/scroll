@@ -92,6 +92,7 @@ struct sway_container {
 		struct sway_scene_tree *tree;
 
 		struct sway_text_node *text;
+		bool jumping;
 	} jump;
 
 	struct sway_scene_tree *content_tree;

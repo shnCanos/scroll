@@ -698,6 +698,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
+			if (parent && parent->jump.jumping) {
+				off = child->pending.y;
+			}
 			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
 			sway_scene_node_set_enabled(&child->border.tree->node, true);
 			double movement = fabs(off - child->animation.y0);
@@ -738,6 +741,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
 			off -= scale * (child->pending.height + 2 * gaps);
 			double delta = child->pending.content_y - child->current.y;
+			if (parent && parent->jump.jumping) {
+				off = child->pending.y;
+			}
 			child->current.y = off;
 			child->pending.y = off;
 			if (child->view) {
@@ -773,6 +779,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 		for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *child = children->items[i];
 			struct sway_container *parent = child->pending.parent;
+			if (parent && parent->jump.jumping) {
+				off = child->pending.x;
+			}
 			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
 			double movement = fabs(off - child->animation.x0);
 			if (movement > 0.0) {
@@ -817,6 +826,9 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
 			off -= scale * (child->pending.width + 2 * gaps);
 			double delta = child->pending.content_x - child->current.x;
+			if (parent && parent->jump.jumping) {
+				off = child->pending.x;
+			}
 			child->current.x = off;
 			child->pending.x = off;
 			if (child->view) {
