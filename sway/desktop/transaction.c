@@ -615,12 +615,14 @@ static double compute_active_offset(struct sway_workspace *workspace,
 			struct sway_container *con = children->items[i];
             lwidth += scale * (con->current.width + 2 * gaps);
         }
+		lwidth = round(lwidth);
         for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *con = children->items[i];
             rwidth += scale * (con->current.width + 2 * gaps);
         }
+		rwidth = round(rwidth);
         double twidth = lwidth + rwidth;
-        if (twidth <= width) {
+        if (twidth <= width + 1) {
             double start = 0.5 * (width - twidth);
             return workspace->x + start + lwidth + scale * gaps;
         }
@@ -635,12 +637,14 @@ static double compute_active_offset(struct sway_workspace *workspace,
 			struct sway_container *con = children->items[i];
             lheight += scale * (con->current.height + 2 * gaps);
         }
+		lheight = round(lheight);
         for (int i = active_idx; i < children->length; ++i) {
 			struct sway_container *con = children->items[i];
             rheight += scale * (con->current.height + 2 * gaps);
         }
+		rheight = round(rheight);
         double theight = lheight + rheight;
-        if (theight <= height) {
+        if (theight <= height + 1) {
             double start = 0.5 * (height - theight);
             return workspace->y + start + lheight + scale * gaps;
         }
