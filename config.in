@@ -48,14 +48,18 @@ set $menu wmenu-run
 #
 # Example configuration:
 #
-#   input "2:14:SynPS/2_Synaptics_TouchPad" {
+#   input type:touchpad {
 #       dwt enabled
 #       tap enabled
 #       natural_scroll enabled
 #       middle_emulation enabled
 #   }
 #
-# You can get the names of your inputs by running: scrollmsg -t get_inputs
+#   input type:keyboard {
+#       xkb_layout "eu"
+#   }
+#
+# You can also configure each device individually.
 # Read `man 5 scroll-input` for more information about this section.
 
 ### Windows defaults
