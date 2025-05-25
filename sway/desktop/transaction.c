@@ -716,19 +716,11 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 				child->animation.yt = child->animation.y0;
 			}
 			sway_scene_node_set_position(&child->scene_tree->node, 0, round(child->animation.yt - workspace->y));
-			double delta = child->pending.content_y - child->current.y;
 			child->current.y = off;
 			child->pending.y = off;
-			if (child->view) {
-				child->pending.content_y = child->current.y + delta;
-			}
 			if (parent) {
-				delta = parent->current.x - child->current.x;
 				child->current.x = parent->current.x;
 				child->pending.x = parent->pending.x;
-				if (child->view) {
-					child->pending.content_x += delta;
-				}
 			} else {
 				child->current.x = workspace->x + scale * gaps;
 				child->pending.x = workspace->x + scale * gaps;
@@ -744,22 +736,14 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			struct sway_container *parent = child->pending.parent;
 			child->animation.ht = max(1, linear_scale(child->animation.h0, child->animation.h1, t));
 			off -= scale * (child->pending.height + 2 * gaps);
-			double delta = child->pending.content_y - child->current.y;
 			if (parent && parent->jump.jumping) {
 				off = child->pending.y;
 			}
 			child->current.y = off;
 			child->pending.y = off;
-			if (child->view) {
-				child->pending.content_y = child->current.y + delta;
-			}
 			if (parent) {
-				delta = parent->current.x - child->current.x;
 				child->current.x = parent->current.x;
 				child->pending.x = parent->pending.x;
-				if (child->view) {
-					child->pending.content_x += delta;
-				}
 			} else {
 				child->current.x = workspace->x + scale * gaps;
 				child->pending.x = workspace->x + scale * gaps;
@@ -801,19 +785,11 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			// the layout (arrange.c:apply_xxx()), so we need to set it here,
 			// otherwise the next call will have the positions wrong and the
 			// offset won't be optimal.
-			double delta = child->pending.content_x - child->current.x;
 			child->current.x = off;
 			child->pending.x = off;
-			if (child->view) {
-				child->pending.content_x = child->current.x + delta;
-			}
 			if (parent) {
-				delta = parent->current.y - child->current.y;
 				child->current.y = parent->current.y;
 				child->pending.y = parent->pending.y;
-				if (child->view) {
-					child->pending.content_y += delta;
-				}
 			} else {
 				child->current.y = workspace->y + scale * gaps;
 				child->pending.y = workspace->y + scale * gaps;
@@ -829,22 +805,14 @@ static void arrange_children(enum sway_container_layout layout, list_t *children
 			struct sway_container *parent = child->pending.parent;
 			child->animation.wt = max(1, linear_scale(child->animation.w0, child->animation.w1, t));
 			off -= scale * (child->pending.width + 2 * gaps);
-			double delta = child->pending.content_x - child->current.x;
 			if (parent && parent->jump.jumping) {
 				off = child->pending.x;
 			}
 			child->current.x = off;
 			child->pending.x = off;
-			if (child->view) {
-				child->pending.content_x = child->current.x + delta;
-			}
 			if (parent) {
-				delta = parent->current.y - child->current.y;
 				child->current.y = parent->current.y;
 				child->pending.y = parent->pending.y;
-				if (child->view) {
-					child->pending.content_y += delta;
-				}
 			} else {
 				child->current.y = workspace->y + scale * gaps;
 				child->pending.y = workspace->y + scale * gaps;
@@ -974,6 +942,34 @@ static void arrange_container(struct sway_container *con,
 
 		if (animation_enabled()) {
 			animation_clip_container(con);
+		}
+
+		// Update content geometry
+		view_autoconfigure(con->view);
+		// Re-configure Xwayland views that change position. The reason is unlike
+		// sway, we update the positions of containers when the transaction is
+		// committed (instead of every time a arrange.c:arrange_XXX() happens.
+		// Views are configured before the transaction re-arranges containers,
+		// so their position may be wrong. This is especially important for
+		// Xwayland windows, because their buffers use absolute positions, and
+		// popup positions could then be wrong..
+		// Here we configure any view that has changed position.
+		if(con->view->type == SWAY_VIEW_XWAYLAND) {
+			// Only update the view at the end of the animation to avoid stress
+			double t, x, y, off;
+			animation_get_values(&t, &x, &y, &off);
+			if (t >= 1.0 &&
+				(con->pending.content_x != con->current.content_x ||
+				con->pending.content_y != con->current.content_y ||
+				con->pending.content_width != con->current.content_width ||
+				con->pending.content_height != con->current.content_height)) {
+				view_configure(con->view, con->pending.content_x, con->pending.content_y,
+					con->pending.content_width, con->pending.content_height);
+				con->current.content_x = con->pending.content_x;
+				con->current.content_y = con->pending.content_y;
+				con->current.content_width = con->pending.content_width;
+				con->current.content_height = con->pending.content_height;
+			}
 		}
 	} else {
 		// make sure to disable the title bar if the parent is not managing it

@@ -439,13 +439,6 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 		view_center_and_clip_surface(view);
 	}
 
-	// If the position changed, re-configure view so the client knows where
-	// to set its surfaces (unmanaged popups etc.).
-	struct sway_container *container = view->container;
-	if (container->current.x != container->pending.x || container->current.y != container->pending.y) {
-		node_set_dirty(&container->node);
-	}
-
 	if (view->container->node.instruction) {
 		bool successful = transaction_notify_view_ready_by_geometry(view,
 				xsurface->x, xsurface->y, state->width, state->height);
