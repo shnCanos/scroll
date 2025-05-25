@@ -75,6 +75,8 @@ struct sway_root *root_create(struct wl_display *wl_display) {
 	root->non_desktop_outputs = create_list();
 	root->scratchpad = create_list();
 
+	root->overview = false;
+
 	return root;
 }
 
@@ -119,7 +121,7 @@ void root_scratchpad_add_container(struct sway_container *con, struct sway_works
 	}
 
 	container_detach(con);
-	if (parent->pending.children->length == 0) {
+	if (parent && parent->pending.children->length == 0) {
 		container_reap_empty(parent);
 		parent = NULL;
 	}
@@ -203,6 +205,8 @@ void root_scratchpad_show(struct sway_container *con) {
 	if (old_ws) {
 		workspace_consider_destroy(old_ws);
 	}
+
+	container_raise_floating(con);
 }
 
 static void disable_fullscreen(struct sway_container *con, void *data) {

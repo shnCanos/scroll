@@ -51,6 +51,8 @@ struct sway_workspace {
 	struct {
 		bool scrolling;
 		double dx, dy;
+		struct sway_container *pin;
+		enum sway_layout_pin pin_position;
 	} gesture;
 
 	struct sway_workspace_state current;
@@ -99,7 +101,7 @@ void workspace_output_add_priority(struct sway_workspace *workspace,
 		struct sway_output *output);
 
 struct sway_output *workspace_output_get_highest_available(
-		struct sway_workspace *ws, struct sway_output *exclude);
+		struct sway_workspace *ws);
 
 void workspace_detect_urgent(struct sway_workspace *workspace);
 

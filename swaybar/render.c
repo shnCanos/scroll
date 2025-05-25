@@ -549,6 +549,19 @@ static uint32_t predict_scroller_indicator_length(cairo_t *cairo,
 	return width;
 }
 
+static uint32_t predict_trails_indicator_length(cairo_t *cairo,
+		struct swaybar_output *output) {
+	uint32_t width = 0;
+	struct swaybar_config *config = output->bar->config;
+	if (config->scroller_indicator) {
+		char *str = format_str("T%d/%d (%d)", output->bar->trails_active,
+			output->bar->trails_length, output->bar->trail_length);
+		width = predict_scroller_item_length(cairo, output, str);
+		free(str);
+	}
+	return width;
+}
+
 static uint32_t render_status_line_i3bar(struct render_context *ctx, double *x) {
 	struct swaybar_output *output = ctx->output;
 	uint32_t max_height = 0;
@@ -561,6 +574,7 @@ static uint32_t render_status_line_i3bar(struct render_context *ctx, double *x) 
 			predict_workspace_buttons_length(cairo, output) +
 			predict_binding_mode_indicator_length(cairo, output) +
 			predict_scroller_indicator_length(cairo, output) +
+			predict_trails_indicator_length(cairo, output) +
 			3; // require a bit of space for margin
 
 	double predicted_full_pos =
@@ -825,6 +839,21 @@ static uint32_t render_scroller_indicator(struct render_context *ctx,
 	return max_height;
 }
 
+static uint32_t render_trails_indicator(struct render_context *ctx,
+		double *x) {
+	struct swaybar_output *output = ctx->output;
+
+	uint32_t max_height = 0;
+	struct swaybar_config *config = output->bar->config;
+	if (config->trails_indicator) {
+		char *str = format_str("T%d/%d (%d)", output->bar->trails_active,
+			output->bar->trails_length, output->bar->trail_length);
+		max_height = render_scroller_item(ctx, x, str);
+		free(str);
+	}
+	return max_height;
+}
+
 static uint32_t render_to_cairo(struct render_context *ctx) {
 	cairo_t *cairo = ctx->cairo;
 	struct swaybar_output *output = ctx->output;
@@ -862,6 +891,10 @@ static uint32_t render_to_cairo(struct render_context *ctx) {
 	}
 	if (config->scroller_indicator) {
 		uint32_t h = render_scroller_indicator(ctx, &x);
+		max_height = h > max_height ? h : max_height;
+	}
+	if (config->trails_indicator) {
+		uint32_t h = render_trails_indicator(ctx, &x);
 		max_height = h > max_height ? h : max_height;
 	}
 	if (config->binding_mode_indicator) {

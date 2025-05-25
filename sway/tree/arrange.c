@@ -33,36 +33,11 @@ static void apply_horiz_layout(list_t *children, struct sway_container *active, 
 	if (ws) {
 		inner_gap = ws->gaps_inner;
 	}
-	int active_idx = list_find(children, active);
-	if (active_idx < 0) {
-		// If there is no active, we have just created this container, locate it
-		// at the corner
-		active = children->items[0];
-		active->pending.x = parent ? parent->pending.x : ws->x;
-		active_idx = 0;
-	}
 	double height = parent ? parent->height_fraction : layout_get_default_height(ws);
 
 	// Resize windows
 	// box has already applied outer and inner gaps
-	active = children->items[active_idx];
-	double child_x = active->pending.x;
-	for (int i = active_idx; i < children->length; ++i) {
-		struct sway_container *child = children->items[i];
-		child->pending.x = child_x;
-		child->pending.y = box->y;
-		if (!child->free_size) {
-			child->pending.width = round(child->width_fraction * box->width - 2 * inner_gap);
-		}
-		if (parent && parent->free_size) {
-			child->pending.height = parent->pending.height;
-		} else {
-			child->pending.height = round((parent ? height : child->height_fraction) * box->height - 2 * inner_gap);
-		}
-		child_x += child->pending.width + 2 * inner_gap;
-	}
-	child_x = active->pending.x;
-	for (int i = active_idx - 1; i >= 0; i--) {
+	for (int i = 0; i < children->length; ++i) {
 		struct sway_container *child = children->items[i];
 		if (!child->free_size) {
 			child->pending.width = round(child->width_fraction * box->width - 2 * inner_gap);
@@ -72,9 +47,6 @@ static void apply_horiz_layout(list_t *children, struct sway_container *active, 
 		} else {
 			child->pending.height = round((parent ? height : child->height_fraction) * box->height - 2 * inner_gap);
 		}
-		child_x -= child->pending.width + 2 * inner_gap;
-		child->pending.x = child_x;
-		child->pending.y = box->y;
 	}
 }
 
@@ -91,36 +63,11 @@ static void apply_vert_layout(list_t *children, struct sway_container *active, s
 	if (ws) {
 		inner_gap = ws->gaps_inner;
 	}
-	int active_idx = list_find(children, active);
-	if (active_idx < 0) {
-		// If there is no active, we have just created this container, locate it
-		// at the corner
-		active = children->items[0];
-		active->pending.y = parent ? parent->pending.y : ws->y;
-		active_idx = 0;
-	}
 	double width = parent ? parent->width_fraction : layout_get_default_width(ws);
 
 	// Resize windows
 	// box has already applied outer and inner gaps
-	active = children->items[active_idx];
-	double child_y = active->pending.y;
-	for (int i = active_idx; i < children->length; ++i) {
-		struct sway_container *child = children->items[i];
-		child->pending.x = box->x;
-		child->pending.y = child_y;
-		if (parent && parent->free_size) {
-			child->pending.width = parent->pending.width;
-		} else {
-			child->pending.width = round((parent ? width : child->width_fraction) * box->width - 2 * inner_gap);
-		}
-		if (!child->free_size) {
-			child->pending.height = round(child->height_fraction * box->height - 2 * inner_gap);
-		}
-		child_y += child->pending.height + 2 * inner_gap;
-	}
-	child_y = active->pending.y;
-	for (int i = active_idx - 1; i >= 0; i--) {
+	for (int i = 0; i < children->length; ++i) {
 		struct sway_container *child = children->items[i];
 		if (parent && parent->free_size) {
 			child->pending.width = parent->pending.width;
@@ -130,9 +77,6 @@ static void apply_vert_layout(list_t *children, struct sway_container *active, s
 		if (!child->free_size) {
 			child->pending.height = round(child->height_fraction * box->height - 2 * inner_gap);
 		}
-		child_y -= child->pending.height + 2 * inner_gap;
-		child->pending.x = box->x;
-		child->pending.y = child_y;
 	}
 }
 

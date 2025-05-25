@@ -659,13 +659,9 @@ void workspace_output_add_priority(struct sway_workspace *workspace,
 }
 
 struct sway_output *workspace_output_get_highest_available(
-		struct sway_workspace *ws, struct sway_output *exclude) {
+		struct sway_workspace *ws) {
 	for (int i = 0; i < ws->output_priority->length; i++) {
 		const char *name = ws->output_priority->items[i];
-		if (exclude && output_match_name_or_id(exclude, name)) {
-			continue;
-		}
-
 		struct sway_output *output = output_by_name_or_id(name);
 		if (output) {
 			return output;
@@ -818,6 +814,11 @@ void workspace_add_floating(struct sway_workspace *workspace,
 		struct sway_container *con) {
 	if (con->pending.workspace) {
 		container_detach(con);
+	}
+	if (layout_scale_enabled(workspace)) {
+		layout_view_scale_set(con, layout_scale_get(workspace));
+	} else {
+		layout_view_scale_reset(con);
 	}
 	list_add(workspace->floating, con);
 	con->pending.workspace = workspace;

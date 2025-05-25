@@ -48,14 +48,18 @@ set $menu wmenu-run
 #
 # Example configuration:
 #
-#   input "2:14:SynPS/2_Synaptics_TouchPad" {
+#   input type:touchpad {
 #       dwt enabled
 #       tap enabled
 #       natural_scroll enabled
 #       middle_emulation enabled
 #   }
 #
-# You can get the names of your inputs by running: scrollmsg -t get_inputs
+#   input type:keyboard {
+#       xkb_layout "eu"
+#   }
+#
+# You can also configure each device individually.
 # Read `man 5 scroll-input` for more information about this section.
 
 ### Windows defaults
@@ -76,6 +80,15 @@ layout_widths [0.33333333 0.5 0.666666667 1.0]
 layout_heights [0.33333333 0.5 0.666666667 1.0]
 
 fullscreen_movefocus true
+
+# Animations
+animations {
+    enabled yes
+    default yes 300 var 3 [ 0.215 0.61 0.355 1 ]
+    window_open yes 300 var 3 [ 0 0 1 1 ]
+    window_move yes 300 var 3 [ 0.215 0.61 0.355 1 ] off 0.05 6 [0 0.6 0.4 0 1 0 0.4 -0.6 1 -0.6]
+    window_size yes 300 var 3 [ -0.35 0 0 0.5 ]
+}
 
 ### Key bindings
 #
@@ -187,6 +200,8 @@ fullscreen_movefocus true
     # jump_labels_scale 0.9
     # jump_labels_keys asdf
     bindsym --no-repeat $mod+slash jump
+    bindsym --no-repeat $mod+Shift+slash jump container
+    bindsym --no-repeat $mod+Ctrl+slash jump workspaces
 
     # Content
     bindsym $mod+comma scale_content incr -0.05
@@ -204,11 +219,23 @@ fullscreen_movefocus true
 
     # Toggle the current focus between tiling and floating mode
     bindsym $mod+y focus mode_toggle
+    # Toggle layout type (h<->v)
+    bindsym $mod+Shift+y layout_transpose
+
     # Float a window
     bindsym $mod+Shift+f floating toggle
 
     # Toggle sticky
-    bindsym $mod+a sticky toggle
+    bindsym $mod+Shift+Ctrl+a sticky toggle
+    # Toggle pin
+    bindsym --no-repeat $mod+a pin beginning
+    bindsym --no-repeat $mod+Shift+a pin end
+
+    # Selection
+    bindsym --no-repeat $mod+Insert selection toggle
+    bindsym --no-repeat $mod+Ctrl+Insert selection reset
+    bindsym --no-repeat $mod+Shift+Insert selection move
+    bindsym --no-repeat $mod+Ctrl+Shift+Insert selection workspace
 
     # Marks
     # bindsym $mod+m exec scroll-mark-toggle.sh
@@ -227,6 +254,8 @@ fullscreen_movefocus true
     # Show the next scratchpad window or hide the focused scratchpad window.
     # If there are multiple scratchpad windows, this command cycles through them.
     bindsym $mod+z scratchpad show
+
+    bindsym $mod+Ctrl+z workspace back_and_forth
 
 #
 # Mode modifiers
@@ -259,18 +288,18 @@ bindsym $mod+Shift+minus cycle_size v prev
 bindsym $mod+Shift+equal cycle_size v next
 
 mode "setsizeh" {
-    bindsym 1 set_size h 0.125
-    bindsym 2 set_size h 0.1666666667
-    bindsym 3 set_size h 0.25
-    bindsym 4 set_size h 0.333333333
-    bindsym 5 set_size h 0.375
-    bindsym 6 set_size h 0.5
-    bindsym 7 set_size h 0.625
-    bindsym 8 set_size h 0.6666666667
-    bindsym 9 set_size h 0.75
-    bindsym 0 set_size h 0.833333333
-    bindsym minus set_size h 0.875
-    bindsym equal set_size h 1.0
+    bindsym 1 set_size h 0.125; mode default
+    bindsym 2 set_size h 0.1666666667; mode default
+    bindsym 3 set_size h 0.25; mode default
+    bindsym 4 set_size h 0.333333333; mode default
+    bindsym 5 set_size h 0.375; mode default
+    bindsym 6 set_size h 0.5; mode default
+    bindsym 7 set_size h 0.625; mode default
+    bindsym 8 set_size h 0.6666666667; mode default
+    bindsym 9 set_size h 0.75; mode default
+    bindsym 0 set_size h 0.833333333; mode default
+    bindsym minus set_size h 0.875; mode default
+    bindsym equal set_size h 1.0; mode default
 
     # Return to default mode
     bindsym Escape mode "default"
@@ -278,18 +307,18 @@ mode "setsizeh" {
 bindsym $mod+b mode "setsizeh"
 
 mode "setsizev" {
-    bindsym 1 set_size v 0.125
-    bindsym 2 set_size v 0.1666666667
-    bindsym 3 set_size v 0.25
-    bindsym 4 set_size v 0.333333333
-    bindsym 5 set_size v 0.375
-    bindsym 6 set_size v 0.5
-    bindsym 7 set_size v 0.625
-    bindsym 8 set_size v 0.6666666667
-    bindsym 9 set_size v 0.75
-    bindsym 0 set_size v 0.833333333
-    bindsym minus set_size v 0.875
-    bindsym equal set_size v 1.0
+    bindsym 1 set_size v 0.125; mode default
+    bindsym 2 set_size v 0.1666666667; mode default
+    bindsym 3 set_size v 0.25; mode default
+    bindsym 4 set_size v 0.333333333; mode default
+    bindsym 5 set_size v 0.375; mode default
+    bindsym 6 set_size v 0.5; mode default
+    bindsym 7 set_size v 0.625; mode default
+    bindsym 8 set_size v 0.6666666667; mode default
+    bindsym 9 set_size v 0.75; mode default
+    bindsym 0 set_size v 0.833333333; mode default
+    bindsym minus set_size v 0.875; mode default
+    bindsym equal set_size v 1.0; mode default
 
     # Return to default mode
     bindsym Escape mode "default"
@@ -351,6 +380,25 @@ mode "fit_size" {
 }
 bindsym $mod+w mode "fit_size"
 
+mode "trailmark" {
+    bindsym bracketright trailmark next
+    bindsym bracketleft trailmark prev
+    bindsym semicolon trailmark toggle; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+semicolon mode "trailmark"
+
+mode "trail" {
+    bindsym bracketright trail next
+    bindsym bracketleft trail prev
+    bindsym semicolon trail new; mode default
+    bindsym d trail delete; mode default
+    bindsym c trail clear; mode default
+    bindsym insert trail to_selection; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+Shift+semicolon mode "trail"
+
 #
 # Utilities:
 #
@@ -372,7 +420,6 @@ bindgesture swipe:4:right workspace next
 bindgesture swipe:4:left workspace prev
 
 bindgesture swipe:4:up scale_workspace overview 
-bindgesture swipe:4:down jump
 
 #
 # Status Bar:

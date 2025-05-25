@@ -23,5 +23,6 @@ void ipc_event_binding(struct sway_binding *binding);
 void ipc_event_input(const char *change, struct sway_input_device *device);
 void ipc_event_output(void);
 void ipc_event_scroller(const char *change, struct sway_workspace *workspace);
+void ipc_event_trails();
 
 #endif

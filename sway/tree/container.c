@@ -25,6 +25,7 @@
 #include "pango.h"
 #include "log.h"
 #include "stringop.h"
+#include "util.h"
 
 static void handle_output_enter(
 		struct wl_listener *listener, void *data) {
@@ -211,6 +212,16 @@ static struct border_colors *container_get_current_colors(
 
 	bool urgent = con->view ?
 		view_is_urgent(con->view) : container_has_urgent_child(con);
+
+	struct sway_workspace *workspace = con->pending.workspace;
+	bool pinned = false;
+	if (workspace) {
+		if (layout_pin_enabled(workspace)) {
+			struct sway_container *parent = con->pending.parent ? con->pending.parent : con;
+			pinned = layout_pin_get_container(workspace) == parent;
+		}
+	}
+
 	struct sway_container *active_child;
 
 	if (con->current.parent) {
@@ -223,6 +234,18 @@ static struct border_colors *container_get_current_colors(
 
 	if (urgent) {
 		colors = &config->border_colors.urgent;
+	} else if (layout_selection_enabled(con)) {
+		if (con->current.focused || container_is_current_parent_focused(con)) {
+			colors = &config->border_colors.selected_focused;
+		} else {
+			colors = &config->border_colors.selected;
+		}
+	} else if (pinned) {
+		if (con->current.focused || container_is_current_parent_focused(con)) {
+			colors = &config->border_colors.pinned_focused;
+		} else {
+			colors = &config->border_colors.pinned;
+		}
 	} else if (con->current.focused || container_is_current_parent_focused(con)) {
 		colors = &config->border_colors.focused;
 	} else if (config->has_focused_tab_title && container_has_focused_child(con)) {
@@ -355,6 +378,9 @@ void container_arrange_title_bar(struct sway_container *con) {
 	pixman_region32_t text_area;
 	pixman_region32_init(&text_area);
 
+	struct sway_workspace *workspace = con->pending.workspace;
+	float scale = workspace ? (layout_scale_enabled(workspace) ? layout_scale_get(workspace) : 1.0f) : 1.0f;
+
 	if (con->title_bar.marks_text) {
 		struct sway_text_node *node = con->title_bar.marks_text;
 		marks_buffer_width = node->width;
@@ -374,10 +400,11 @@ void container_arrange_title_bar(struct sway_container *con) {
 
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
-			h_padding, (height - node->height) >> 1);
+			round(scale * h_padding), round(scale * ((height - node->height) >> 1)));
+		sway_text_node_scale(node, scale);
 
 		pixman_region32_union_rect(&text_area, &text_area,
-			node->node->x, node->node->y, alloc_width, node->height);
+			node->node->x, node->node->y, round(scale * alloc_width), round(scale * node->height));
 	}
 
 	if (con->title_bar.title_text) {
@@ -400,10 +427,11 @@ void container_arrange_title_bar(struct sway_container *con) {
 
 		sway_text_node_set_max_width(node, alloc_width);
 		sway_scene_node_set_position(node->node,
-			h_padding, (height - node->height) >> 1);
+			round(scale * h_padding), round(scale * ((height - node->height) >> 1)));
+		sway_text_node_scale(node, scale);
 
 		pixman_region32_union_rect(&text_area, &text_area,
-			node->node->x, node->node->y, alloc_width, node->height);
+			node->node->x, node->node->y, round(scale * alloc_width), round(scale * node->height));
 	}
 
 	// silence pixman errors
@@ -414,11 +442,11 @@ void container_arrange_title_bar(struct sway_container *con) {
 
 	pixman_region32_t background, border;
 
-	int thickness = config->titlebar_border_thickness;
+	int thickness = max(1, round(scale * config->titlebar_border_thickness));
 	pixman_region32_init_rect(&background,
 		thickness, thickness,
-		width - thickness * 2, height - thickness * 2);
-	pixman_region32_init_rect(&border, 0, 0, width, height);
+		round(scale * width) - thickness * 2, round(scale * height) - thickness * 2);
+	pixman_region32_init_rect(&border, 0, 0, round(scale * width), round(scale * height));
 	pixman_region32_subtract(&border, &border, &background);
 
 	pixman_region32_subtract(&background, &background, &text_area);
@@ -1014,6 +1042,9 @@ void container_set_floating(struct sway_container *container, bool enable) {
 
 	if (enable) {
 		struct sway_container *old_parent = container->pending.parent;
+		if (layout_selection_enabled(old_parent)) {
+			layout_selection_set(container, true);
+		}
 		container_detach(container);
 		workspace_add_floating(workspace, container);
 		if (container->view) {
@@ -1371,6 +1402,41 @@ void container_set_fullscreen(struct sway_container *con,
 			container_fullscreen_disable(con);
 		}
 		container_fullscreen_global(con);
+		break;
+	}
+}
+
+void container_pass_fullscreen(struct sway_container *src, struct sway_container *dst) {
+	if (src->pending.fullscreen_mode == dst->pending.fullscreen_mode) {
+		return;
+	}
+	enum sway_fullscreen_mode mode = src->pending.fullscreen_mode;
+
+	switch (mode) {
+	case FULLSCREEN_NONE:
+		container_fullscreen_disable(dst);
+		break;
+	case FULLSCREEN_WORKSPACE:
+		if (root->fullscreen_global) {
+			container_fullscreen_disable(root->fullscreen_global);
+		}
+		if (src->pending.workspace && src->pending.workspace->fullscreen) {
+			container_fullscreen_disable(src->pending.workspace->fullscreen);
+		}
+		arrange_root();
+		container_fullscreen_workspace(dst);
+		arrange_root();
+		break;
+	case FULLSCREEN_GLOBAL:
+		if (root->fullscreen_global) {
+			container_fullscreen_disable(root->fullscreen_global);
+		}
+		if (src->pending.fullscreen_mode == FULLSCREEN_WORKSPACE) {
+			container_fullscreen_disable(src);
+		}
+		arrange_root();
+		container_fullscreen_global(dst);
+		arrange_root();
 		break;
 	}
 }

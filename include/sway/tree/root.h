@@ -72,6 +72,8 @@ struct sway_root {
 	struct {
 		struct wl_signal new_node;
 	} events;
+
+	bool overview;
 };
 
 struct sway_root *root_create(struct wl_display *display);

@@ -618,9 +618,15 @@ static bool should_focus(struct sway_view *view) {
 		return true;
 	}
 
-	// View opened "under" fullscreen view should not be given focus.
-	if (root->fullscreen_global || !map_ws || map_ws->fullscreen) {
+	// View opened "under" global fullscreen view should not be given focus.
+	if (root->fullscreen_global || !map_ws) {
 		return false;
+	}
+
+	// View opened "under" fullscreen view should not be given focus unless
+	// fullscreen_movefocus is set.
+	if (map_ws->fullscreen) {
+		return config->fullscreen_movefocus ? true : false;
 	}
 
 	// Views can only take focus if they are mapped into the active workspace
@@ -849,6 +855,10 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 
 	view_execute_criteria(view);
 
+	if (!fullscreen && ws && ws->fullscreen && config->fullscreen_movefocus) {
+		container_pass_fullscreen(ws->fullscreen, view->container);
+	}
+
 	bool set_focus = should_focus(view);
 	if (ws && set_focus && !container_is_floating(container)) {
 		set_focus = layout_modifiers_get_focus(ws);
@@ -877,6 +887,8 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 	} else if ((class = view_get_class(view)) != NULL) {
 		wlr_foreign_toplevel_handle_v1_set_app_id(view->foreign_toplevel, class);
 	}
+
+	animation_create(ANIM_WINDOW_OPEN);
 }
 
 void view_unmap(struct sway_view *view) {
@@ -898,6 +910,8 @@ void view_unmap(struct sway_view *view) {
 		wlr_foreign_toplevel_handle_v1_destroy(view->foreign_toplevel);
 		view->foreign_toplevel = NULL;
 	}
+
+	layout_trail_remove_view(view);
 
 	struct sway_container *parent = view->container->pending.parent;
 	struct sway_workspace *ws = view->container->pending.workspace;

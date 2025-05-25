@@ -128,6 +128,9 @@ runtime.
 	If set to _yes_, then workspace numbers will be omitted from the workspace
 	button and only the custom name will be shown. Default is _no_.
 
+*trails_indicator* yes|no
+	Enable or disable the trails indicator. Default is _yes_.
+
 *unbindcode* [--release] <event-code>
 	Removes the binding with the given <event-code>.
 

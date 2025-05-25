@@ -194,6 +194,11 @@ static bool ipc_parse_config(
 		config->scroller_indicator = json_object_get_boolean(scroller);
 	}
 
+	json_object *trails = json_object_object_get(bar_config, "trails_indicator");
+	if (trails) {
+		config->trails_indicator = json_object_get_boolean(trails);
+	}
+
 	json_object *outputs = json_object_object_get(bar_config, "outputs");
 	struct config_output *output, *tmp;
 	wl_list_for_each_safe(output, tmp, &config->outputs, link) {
@@ -461,6 +466,34 @@ bool ipc_get_scroller(struct swaybar *bar) {
 	return determine_bar_visibility(bar, false);
 }
 
+bool ipc_get_trails(struct swaybar *bar) {
+	uint32_t len = 0;
+	char *res = ipc_single_command(bar->ipc_socketfd,
+			IPC_GET_TRAILS, NULL, &len);
+	json_object *results = json_tokener_parse(res);
+	if (!results) {
+		free(res);
+		return false;
+	}
+
+	json_object *s;
+	json_object_object_get_ex(results, "trails", &s);
+
+	json_object *length, *active, *trail_length;
+
+	json_object_object_get_ex(s, "length", &length);
+	json_object_object_get_ex(s, "active", &active);
+	json_object_object_get_ex(s, "trail_length", &trail_length);
+
+	bar->trails_length = json_object_get_int(length);
+	bar->trails_active = json_object_get_int(active);
+	bar->trail_length = json_object_get_int(trail_length);
+
+	json_object_put(results);
+	free(res);
+	return determine_bar_visibility(bar, false);
+}
+
 void ipc_execute_binding(struct swaybar *bar, struct swaybar_binding *bind) {
 	sway_log(SWAY_DEBUG, "Executing binding for button %u (release=%d): `%s`",
 			bind->button, bind->release, bind->command);
@@ -480,7 +513,7 @@ bool ipc_initialize(struct swaybar *bar) {
 	free(res);
 
 	char *subscribe =
-		"[ \"barconfig_update\", \"bar_state_update\", \"mode\", \"workspace\", \"scroller\" ]";
+		"[ \"barconfig_update\", \"bar_state_update\", \"mode\", \"workspace\", \"scroller\", \"trails\" ]";
 	len = strlen(subscribe);
 	free(ipc_single_command(bar->ipc_event_socketfd,
 			IPC_SUBSCRIBE, subscribe, &len));
@@ -644,6 +677,9 @@ bool handle_ipc_readable(struct swaybar *bar) {
 	}
 	case IPC_EVENT_SCROLLER:
 		bar_is_dirty = ipc_get_scroller(bar);
+		break;
+	case IPC_EVENT_TRAILS:
+		bar_is_dirty = ipc_get_trails(bar);
 		break;
 	case IPC_EVENT_BARCONFIG_UPDATE:
 		bar_is_dirty = handle_barconfig_update(bar, resp->payload, result);

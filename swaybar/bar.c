@@ -458,6 +458,9 @@ bool bar_setup(struct swaybar *bar, const char *socket_path) {
 	if (bar->config->scroller_indicator) {
 		ipc_get_scroller(bar);
 	}
+	if (bar->config->trails_indicator) {
+		ipc_get_trails(bar);
+	}
 	determine_bar_visibility(bar, false);
 	return true;
 }

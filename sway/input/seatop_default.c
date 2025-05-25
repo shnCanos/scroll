@@ -1032,8 +1032,9 @@ static void handle_swipe_begin(struct sway_seat *seat,
 		gesture_tracker_begin(&seatop->gestures, GESTURE_TYPE_SWIPE, event->fingers);
 	} else {
 		if (config->gesture_scroll_enable && event->fingers == config->gesture_scroll_fingers) {
-			layout_scroll_begin(seat);
-			return;
+			if (layout_scroll_begin(seat)) {
+				return;
+			}
 		}
 		// ... otherwise forward to client
 		struct sway_cursor *cursor = seat->cursor;

@@ -9,6 +9,7 @@
 #include "sway/tree/view.h"
 #include "sway/tree/workspace.h"
 #include "sway/output.h"
+#include "sway/desktop/animation.h"
 
 #define AXIS_HORIZONTAL (WLR_EDGE_LEFT | WLR_EDGE_RIGHT)
 #define AXIS_VERTICAL   (WLR_EDGE_TOP | WLR_EDGE_BOTTOM)
@@ -99,6 +100,7 @@ static struct cmd_results *cycle_size_tiled(uint32_t axis, int inc) {
 		}
 	}
 
+	animation_create(ANIM_WINDOW_SIZE);
 	if (current->pending.parent) {
 		arrange_container(current->pending.parent);
 	} else {
@@ -116,6 +118,9 @@ struct cmd_results *cmd_cycle_size(int argc, char **argv) {
 	struct sway_container *current = config->handler_context.container;
 	if (!current) {
 		return cmd_results_new(CMD_INVALID, "Cannot cycle_size nothing");
+	}
+	if (container_is_floating(current)) {
+		return cmd_results_new(CMD_INVALID, "Cannot cycle_size floating containers");
 	}
 
 	struct cmd_results *error;

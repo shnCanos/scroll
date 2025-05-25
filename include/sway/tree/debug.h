@@ -1,4 +1,4 @@
-#ifndef _SWAY_SCENE_DEBUG_H_
+#ifndef _SWAY_SCENE_DEBUG_H
 #define _SWAY_SCENE_DEBUG_H
 
 struct sway_scene_node;

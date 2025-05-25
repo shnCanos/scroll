@@ -92,6 +92,7 @@ struct sway_container {
 		struct sway_scene_tree *tree;
 
 		struct sway_text_node *text;
+		bool jumping;
 	} jump;
 
 	struct sway_scene_tree *content_tree;
@@ -132,6 +133,15 @@ struct sway_container {
 	double height_fraction;
 	// The container doesn't use a fraction for size
 	bool free_size;
+
+	// Animation variables
+	struct {
+		double x0, y0, w0, h0;
+		double xt, yt, wt, ht;
+		double w1, h1;
+	} animation;
+
+	bool selected;	// for selection/cut/move
 
 	// Indicates that the container is a scratchpad container.
 	// Both hidden and visible scratchpad containers have scratchpad=true.
@@ -265,6 +275,12 @@ void container_set_fullscreen(struct sway_container *con,
  * Convenience function.
  */
 void container_fullscreen_disable(struct sway_container *con);
+
+/**
+ * Pass the src container's full screen mode to dst. Use when changing focus
+ * and want to keep full screen mode (fullscreen_movefocus option)
+ */
+void container_pass_fullscreen(struct sway_container *src, struct sway_container *dst);
 
 /**
  * Walk up the container tree branch starting at the given container, and return

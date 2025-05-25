@@ -6,19 +6,21 @@ only supports one layout, a scrolling layout similar to
 [PaperWM](https://github.com/paperwm/PaperWM), [niri](https://github.com/YaLTeR/niri)
 or [hyprscroller](https://github.com/dawsers/hyprscroller).
 
-[scroll.mp4](https://github.com/user-attachments/assets/7f0bdd7f-bac7-4760-8473-2179dec88738)
-
+[video.mp4](https://github.com/user-attachments/assets/d39f2e91-1258-437f-8ea3-60dd44bb4d3b)
 
 *scroll* works very similarly to *hyprscroller*, and it is also mostly
 compatible with *sway* configurations aside from the window layout. It
 supports some added features:
+
+* Animations: *scroll* supports very customizable animations.
 
 * Content scaling: The content of individual Wayland windows can be scaled
   independently of the general output scale.
 
 * Overview and Jump modes: You can see an overview of the desktop and work
   with the windows at that scale. Jump allows you to move to any window with
-  just some key presses, like easymotion in some editors.
+  just some key presses, like easymotion in some editors. There is also a jump
+  mode to preview and switch to any available workspace.
 
 * Workspace scaling: Apart from overview, you can scale the workspace to any
   scale, and continue working.
@@ -52,6 +54,9 @@ man 5 scroll
 man 1 scroll
 man 1 scrollmsg
 man 7 scroll-ipc
+man scroll-output
+man scroll-bar
+man scrollnag
 ```
 
 ## Building and Installing
@@ -109,6 +114,13 @@ output DP-2 {
 The *horizontal* layout will create columns of windows, and the "vertical"
 layout will create rows of windows. You can still add any number of columns or
 rows, and any number of windows to each row/column.
+
+The command `layout_transpose` allows you to change from one type of layout to
+the other at runtime. For example, you want to move your current workspace
+from a landscape monitor to one in portrait mode: `move` the workspace and then
+call `layout_transpose`; it will change your existing layout from a row of
+columns to a column of rows, keeping all your windows in the same relative
+positions. You can undo it by calling `layout_transpose` again.
 
 ### Modes
 
@@ -311,6 +323,23 @@ on the overlaid label.
 
 You can call `jump` from any mode: overview or normal mode.
 
+There are also two special `jump` modes:
+
+`jump workspaces` will show you a preview of all the available workspaces on
+their respective monitor. You can use this mode to preview and quickly jump
+to any workspace.
+
+`jump container` will show you all the windows in the active column
+(horizontal layout) or all the windows in the active row (vertical layout), so
+you can quickly jump to any of them. It is a good substitute for tabs, because
+you also see the content of the windows.
+
+``` config
+    bindsym --no-repeat $mod+slash jump
+    bindsym --no-repeat $mod+Shift+slash jump container
+    bindsym --no-repeat $mod+Ctrl+slash jump workspaces
+```
+
 
 ### Content Scaling
 
@@ -345,10 +374,175 @@ not the active one if your configuration is set to focus following the mouse.
 You can also use the mouse (Mod + dragging with the center button pressed) to
 scroll.
 
+### Animations
+
+*scroll* supports very customizable animations using N-order Bezier curves.
+You can use specific animation curves for each operation, and each curve is
+composed of two additional curves. One controls the timing for the animation
+of the changing variable, and another an offset for the non-changing one.
+This means you can animate the speed of the effect, like in most compositors,
+but you can also animate the offset that isn't changing. For example, when
+a window is moving, you can animate the coordinate that is moving, but also
+define an oscillation for the coordinate that doesn't change.
+
+Using N-order Bezier curves, the curves can be practically anything. 
+
+There are two optional curves to define:
+
+- `var` defines the timing/position for the main animated variable, and should
+always start at (0, 0) and end at (1, 1). You only define the points in-between.
+(0, 0) is `time = 0` and initial `x` position. (1, 1) is `time = 1` (end of
+animation) and `x` at the final animation position.
+
+- `off` defines the positional offset for the variable that is static (for
+example, if moving on the x direction, `var` defines the timing of the x
+coordinate and `off` the offset for y). This curve starts at (0, 0) (initial
+`x` and `y` positions) and ends at (1, 0) (final `x` position, and final
+offset for `y` which is 0 because that is the variable that doesn't move. To
+avoid mistakes, you only define the points in-between.
+
+[This](https://nurbscalculator.in/) page has a Bezier curve design applet you
+can use to customize any curve. Don't forget to select `Bezier` as the type of
+the curve instead of the default `NURBS`. Here, you will need to add the
+origin and end points to be able to design the curve, but then you don't
+add them in your config.
+
+If you want some simpler (order 3) curves for the `var` curve, you can copy them
+from [here](https://www.cssportal.com/css-cubic-bezier-generator/). You can
+copy them directly, as they don't include the initial and last points either.
+
+Read the man pages and the section of this document on *Animation Options* for
+details, and try these example curves in your `config` to see it in action:
+
+``` config
+animations {
+    default yes 300 var 3 [ 0.215 0.61 0.355 1 ]
+    window_open yes 300 var 3 [ 0 0 1 1 ]
+    window_move yes 300 var 3 [ 0.215 0.61 0.355 1 ] off 0.05 6 [0 0.6 0.4 0 1 0 0.4 -0.6 1 -0.6]
+    window_size yes 300 var 3 [ -0.35 0 0 0.5 ]
+}
+```
+
+
+### Pins
+
+*scroll* supports *pinning* a tiled top level container to either edge of the
+workspace. This may be useful when you have a very wide monitor, or you want
+to keep a column visible at all times. You may want to have some documentation
+or terminal always visible.
+
+The command is `pin <beginning|end>`.
+
+It will *pin* the active top level container. For horizontal layouts, it will
+pin it to the left (`beginning`) or right (`end`) edge of the monitor. For
+vertical layouts, to the top (`beginning`) or bottom (`end`) edge.
+
+`pin` works as a toggle, and there can only be one pin per workspace. The
+logic is as follows when you call `pin`:
+
+1. If the current container is already pinned: if you call `pin` with the same
+   argument of the current pin, it will be unset and the container freed from
+   its pin. If the argument is different, it will move the pinned container to
+   the other position.
+2. If the current container is not pinned yet: it will replace the pinned
+   container, if any.
+
+### Window Selection/Moving
+
+The command `selection` manages window/container selections. You can select
+several windows or containers at a time, even in different workspaces and/or
+from overview mode. Those windows will change the border color to the one
+specified in the option `client.selected`.
+
+Use `selection toggle` to select/deselect a window (in window mode)
+or a full container (in top-level mode).
+
+If you want to clear a selection, instead of "toggling" each window/container,
+you can call `selection reset`, which will clear all the selected items.
+
+Once you have made a selection, you can move those windows to a different
+workspace or location in the same workspace using `selection move`.
+The selection order and column/window configuration will be maintained.
+
+If your new location has a different layout type (for example, vertical
+instead of horizontal), your containers and windows will adapt, transposing
+their positions to better fit the new destination.
+
+`selection workspace` will add every window of the current workspace
+to the selection. You can use this when you want to move one workspace to a
+different one, but keeping windows positions and sizes. Use
+`selection workspace`, and then `selection move` where you want the windows
+to appear.
+
+`selection move` uses the current mode modifier to locate the new containers.
+So you can place the new containers `before`, `after`, at the beginning
+(`beg`) or `end` depending on the current mode.
+
+```
+selection <toggle|reset|workspace|move>
+```
+
+
+### Trails and Trailmarks
+
+Trails and Trailmarks are a concept borrowed from [trailblazer.nvim](https://github.com/LeonHeidelbach/trailblazer.nvim).
+
+A **trailmark** is like an anonymous mark on a window, and a **trail** is a
+collection of trailmarks. You can have as many trails as you want, and as many
+trailmarks as you want in any trail. Each window can be in as many trails
+as you want, too.
+
+Creating your first trailmark (`trailmark toggle`) will create a trail. From
+then on, every trailmark you create will be assigned to that trail. You can
+navigate back (`trailmark prev`) and forth (`trailmark next`) within the
+collection of trailmarks contained in the trail.
+
+To create a new trail, use `trail new`. With `trail prev` and `trail next`
+you can navigate trails, changing the active one. The active trail will be
+the one used for the trailmark command (`toggle`, `next`, and `prev`).
+
+Clear all the trailmarks of the active trail using `trail clear`, or delete
+the trail from the list with `trail delete`.
+
+`trail to_selection` creates a selection list from the trailmarks in the active
+trail. You can use that selection for example to move all the windows to a new
+workspace using `selection move`.
+
+*scroll* generates IPC signals for trail/trailmark events. See the man page
+or the example implementation in *scrollbar* if you want to use these signals
+to display information on your desktop bar.
+
+There is also a reference implementation for the *scroll* modules in
+[gtkshell](https://github.com/dawsers/gtkshell).
+
+Read the example config for an example on how to set bindings for the trail
+and trailmark commands.
+
+``` config
+mode "trailmark" {
+    bindsym bracketright trailmark next
+    bindsym bracketleft trailmark prev
+    bindsym semicolon trailmark toggle; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+semicolon mode "trailmark"
+
+mode "trail" {
+    bindsym bracketright trail next
+    bindsym bracketleft trail prev
+    bindsym semicolon trail new; mode default
+    bindsym d trail delete; mode default
+    bindsym c trail clear; mode default
+    bindsym insert trail to_selection; mode default
+    bindsym Escape mode "default"
+}
+bindsym $mod+Shift+semicolon mode "trail"
+```
+
 
 ### Tips for Using Marks
 
-*scroll* supports sway's mark based navigation. I use these scripts and
+*scroll* also supports sway's mark based navigation. I use these scripts and
 key bindings:
 
 ``` config
@@ -486,8 +680,10 @@ possible jump labels.
 
 ### General Options
 
-`fullscreen_movefocus`: default is `true`. If `true`, changind focus while in
-full screen mode will keep full screen status for the new window.
+`fullscreen_movefocus`: default is `true`. If `true`, changing focus while in
+full screen mode will keep full screen status for the new window. You can use
+overview/jump while in full screen mode to move to other window, making it
+full screen too.
 
 
 ### Gesture Options
@@ -500,15 +696,88 @@ scrolling gesture.
 `gesture_scroll_sentitivity`: default is `1.0`. Increase if you want more
 sensitivity.
 
+### Animation Options
+
+You can define a block in your `config` file for animations. The block is
+called `animations`. Within that block there are several options allowed:
+
+`enabled`: (boolean) default is `yes`. Enables/disables animations globally.
+
+`frequency_ms`: (integer) default is `16`. Number of milliseconds for each
+animation step. The default is approximately the refresh rate of a monitor
+that works at 60 Hz. If you need smoother animations, reduce this value. Use
+with caution to avoid crashes or performance issues. The default should work
+for most cases unless you have a very high refresh rate monitor.
+
+`default`: defines the default animation curve. Follows the format explained
+below. default is `yes 300 var 3 [ 0.215 0.61 0.355 1 ]`
+
+`window_move`: defines the curve for windows movement (`move` command). By
+default it is not defined, so it uses the `default` curve unless you add one to
+your config.
+
+`window_open`: defines the curve for windows opening. By default it is not
+defined, so it uses the `default` curve unless you add one to your config.
+
+`window_size`: defines the curve for windows resizing (`cycle_size`,
+`set_size`, `fit_size`, `resize` commands). By default it is not defined, so
+it uses the `default` curve unless you add one to your config.
+
+Format of an animation curve:
+
+- The first field is `enabled`. It can be `yes` or `no`. It enables or
+  disables animations for that operation. If set to `no`, you don't need to
+  define the curve. If set to `yes`, you can set the `duration` if you
+  want to use the `default` curve, or define the curves using the following
+  options.
+
+- `duration_ms`. Duration of the animation in milliseconds.
+
+- `var`. Defines the animation curve for the variable changing in the
+  operation/command. The fields are `order` and `control_points`. `order`
+  defines the order of the Bezier curve that follows, and `control_points` is
+  an array defining its control points except for the first, that is `(0, 0)`,
+  and the last, `(1, 1)`. The number of values in the array will be `2 * (order - 1)`.
+  A Bezier curve of `order` needs `order + 1` control points to be
+  defined, but we set the first and last to `(0, 0)` and `(1, 1)`.
+  We use 2D Bezier curves, so the array needs `2 * (order -1)` numbers in it.
+
+- `off`. Defines the animation curve for the variable that doesn't change in the
+  operation/command. The fields are `scale` `order` and `control_points`.
+  `scale` is the fraction of the workspace size used to scale the curve. As
+  the curve is defined from `(0, 0)` to `(1, 0)`, we need a parameter to scale
+  the offset value. This parameter does that. For example, using a small parameter
+  like `0.05`, creates offsets of an order of `5%` of the size of the workspace.
+  `order` and `control_points` work as in the `var` case. But this time, the
+  points you will not include are: `(0, 0)` (first) and `(1, 0)` (last).
+
+Example:
+
+``` config
+animations {
+    default yes 300 var 3 [ 0.215 0.61 0.355 1 ]
+    window_open yes 300 var 3 [ 0 0 1 1 ]
+    window_move yes 300 var 3 [ 0.215 0.61 0.355 1 ] off 0.05 6 [0 0.6 0.4 0 1 0 0.4 -0.6 1 -0.6]
+    window_size yes 300 var 3 [ -0.35 0 0 0.5 ]
+}
+```
+
 
 ## IPC
 
 *scroll* adds IPC events you can use to create a module for your favorite
 desktop bar.
 
-See `include/ipc.h` for `IPG_GET_SCROLLER` and  `IPC_EVENT_SCROLLER`
+See `include/ipc.h` for `IPG_GET_SCROLLER`, `IPC_EVENT_SCROLLER`,
+`IPG_GET_TRAILS` and `IPC_EVENT_TRAILS`.
 
-You can get data for mode/mode modifiers, overview and scale mode.
+You can get data for mode/mode modifiers, overview and scale mode as well as
+trails and whether a view has an active trailmark.
+
+For anyone interested in creating modules for popular desktop bars, there is a
+reference implementation for the *scroll* modules in
+[gtkshell](https://github.com/dawsers/gtkshell).
+
 
 ``` c
 json_object *ipc_json_describe_scroller(struct sway_workspace *workspace) {
@@ -567,5 +836,34 @@ void ipc_event_scroller(const char *change, struct sway_workspace *workspace) {
 	const char *json_string = json_object_to_json_string(json);
 	ipc_send_event(json_string, IPC_EVENT_SCROLLER);
 	json_object_put(json);
+}
+
+json_object *ipc_json_describe_trails() {
+	json_object *object = json_object_new_object();
+
+	json_object_object_add(object, "length", json_object_new_int(layout_trails_length()));
+	json_object_object_add(object, "active", json_object_new_int(layout_trails_active()));
+	json_object_object_add(object, "trail_length", json_object_new_int(layout_trails_active_length()));
+
+	return object;
+}
+
+void ipc_event_trails() {
+	if (!ipc_has_event_listeners(IPC_EVENT_TRAILS)) {
+		return;
+	}
+	sway_log(SWAY_DEBUG, "Sending trails event");
+
+	json_object *json = json_object_new_object();
+	json_object_object_add(json, "trails", ipc_json_describe_trails());
+
+	const char *json_string = json_object_to_json_string(json);
+	ipc_send_event(json_string, IPC_EVENT_TRAILS);
+	json_object_put(json);
+}
+
+static void ipc_json_describe_view(struct sway_container *c, json_object *object) {
+...
+	json_object_object_add(object, "trailmark", json_object_new_boolean(layout_trails_trailmarked(c->view)));
 }
 ```

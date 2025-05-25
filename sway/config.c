@@ -166,6 +166,20 @@ void free_config(struct sway_config *config) {
 		}
 		list_free(config->criteria);
 	}
+
+	if (config->animations.anim_default) {
+		destroy_animation_curve(config->animations.anim_default);
+	}
+	if (config->animations.window_open) {
+		destroy_animation_curve(config->animations.window_open);
+	}
+	if (config->animations.window_move) {
+		destroy_animation_curve(config->animations.window_move);
+	}
+	if (config->animations.window_size) {
+		destroy_animation_curve(config->animations.window_size);
+	}
+
 	list_free_items_and_destroy(config->layout_widths);
 	list_free_items_and_destroy(config->layout_heights);
 	free(config->jump_labels_keys);
@@ -250,6 +264,21 @@ static void config_defaults(struct sway_config *config) {
 	config->gesture_scroll_enable = true;
 	config->gesture_scroll_fingers = 3;
 	config->gesture_scroll_sentitivity = 1.0f;
+
+	config->animations.frequency_ms = 16; // ~60 Hz
+	config->animations.enabled = true;
+	double points[] = { 0.215, 0.61, 0.355, 1.0 };
+	list_t *default_points = create_list();
+	for (uint32_t i = 0; i < sizeof(points) / sizeof(double); ++i) {
+		double *val = malloc(sizeof(double));
+		*val = points[i];
+		list_add(default_points, val);
+	}
+	config->animations.anim_default = create_animation_curve(true, 300, 3, default_points, 0.0, 0, NULL);
+	list_free_items_and_destroy(default_points);
+	config->animations.window_open = NULL;
+	config->animations.window_move = NULL;
+	config->animations.window_size = NULL;
 
 	if (!(config->input_type_configs = create_list())) goto cleanup;
 	if (!(config->input_configs = create_list())) goto cleanup;
@@ -361,6 +390,30 @@ static void config_defaults(struct sway_config *config) {
 	color_to_rgba(config->border_colors.urgent.text, 0xFFFFFFFF);
 	color_to_rgba(config->border_colors.urgent.indicator, 0x900000FF);
 	color_to_rgba(config->border_colors.urgent.child_border, 0x900000FF);
+
+	color_to_rgba(config->border_colors.pinned.border, 0xBEEEEFFF);
+	color_to_rgba(config->border_colors.pinned.background, 0x000000FF);
+	color_to_rgba(config->border_colors.pinned.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.pinned.indicator, 0xEFEEBEFF);
+	color_to_rgba(config->border_colors.pinned.child_border, 0xBEEEEFFF);
+
+	color_to_rgba(config->border_colors.pinned_focused.border, 0x6E8EEFFF);
+	color_to_rgba(config->border_colors.pinned_focused.background, 0x000000FF);
+	color_to_rgba(config->border_colors.pinned_focused.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.pinned_focused.indicator, 0xEFEEBEFF);
+	color_to_rgba(config->border_colors.pinned_focused.child_border, 0x6E8EEFFF);
+
+	color_to_rgba(config->border_colors.selected.border, 0x009000FF);
+	color_to_rgba(config->border_colors.selected.background, 0x000000FF);
+	color_to_rgba(config->border_colors.selected.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.selected.indicator, 0x00B000FF);
+	color_to_rgba(config->border_colors.selected.child_border, 0x00B000FF);
+
+	color_to_rgba(config->border_colors.selected_focused.border, 0x009090FF);
+	color_to_rgba(config->border_colors.selected_focused.background, 0x000000FF);
+	color_to_rgba(config->border_colors.selected_focused.text, 0xFFFFFFFF);
+	color_to_rgba(config->border_colors.selected_focused.indicator, 0x00B000FF);
+	color_to_rgba(config->border_colors.selected_focused.child_border, 0x009090FF);
 
 	color_to_rgba(config->border_colors.placeholder.border, 0x000000FF);
 	color_to_rgba(config->border_colors.placeholder.background, 0x0C0C0CFF);
@@ -579,28 +632,12 @@ bool load_main_config(const char *file, bool is_active, bool validating) {
 	return success;
 }
 
-static bool load_include_config(const char *path, const char *parent_dir,
-		struct sway_config *config, struct swaynag_instance *swaynag) {
+static bool load_include_config(const char *path, struct sway_config *config,
+		struct swaynag_instance *swaynag) {
 	// save parent config
 	const char *parent_config = config->current_config_path;
 
-	char *full_path;
-	int len = strlen(path);
-	if (len >= 1 && path[0] != '/') {
-		len = len + strlen(parent_dir) + 2;
-		full_path = malloc(len * sizeof(char));
-		if (!full_path) {
-			sway_log(SWAY_ERROR,
-				"Unable to allocate full path to included config");
-			return false;
-		}
-		snprintf(full_path, len, "%s/%s", parent_dir, path);
-	} else {
-		full_path = strdup(path);
-	}
-
-	char *real_path = realpath(full_path, NULL);
-	free(full_path);
+	char *real_path = realpath(path, NULL);
 
 	if (real_path == NULL) {
 		sway_log(SWAY_DEBUG, "%s not found.", path);
@@ -652,7 +689,7 @@ void load_include_configs(const char *path, struct sway_config *config,
 		char **w = p.we_wordv;
 		size_t i;
 		for (i = 0; i < p.we_wordc; ++i) {
-			load_include_config(w[i], parent_dir, config, swaynag);
+			load_include_config(w[i], config, swaynag);
 		}
 		wordfree(&p);
 	}

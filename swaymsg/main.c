@@ -422,6 +422,29 @@ static void pretty_print_scroller(json_object *i) {
 	printf("\n");
 }
 
+static void pretty_print_trails(json_object *i) {
+	json_object *s;
+	json_object_object_get_ex(i, "trails", &s);
+
+	json_object *length, *active, *trail_length;
+
+	json_object_object_get_ex(s, "length", &length);
+	json_object_object_get_ex(s, "active", &active);
+	json_object_object_get_ex(s, "trail_length", &trail_length);
+
+	const char *fmt =
+		"Trails:\n"
+		"  Number: %d\n"
+		"  Active: %d\n"
+		"  Active Length: %d\n";
+
+	printf(fmt, json_object_get_int(length),
+		json_object_get_int(active),
+		json_object_get_int(trail_length));
+
+	printf("\n");
+}
+
 static void pretty_print(int type, json_object *resp) {
 	switch (type) {
 	case IPC_SEND_TICK:
@@ -437,6 +460,9 @@ static void pretty_print(int type, json_object *resp) {
 		return;
 	case IPC_GET_SCROLLER:
 		pretty_print_scroller(resp);
+		return;
+	case IPC_GET_TRAILS:
+		pretty_print_trails(resp);
 		return;
 	case IPC_COMMAND:
 	case IPC_GET_WORKSPACES:
@@ -590,6 +616,8 @@ int main(int argc, char **argv) {
 		type = IPC_SUBSCRIBE;
 	} else if (strcasecmp(cmdtype, "get_scroller") == 0) {
 		type = IPC_GET_SCROLLER;
+	} else if (strcasecmp(cmdtype, "get_trails") == 0) {
+		type = IPC_GET_TRAILS;
 	} else {
 		if (quiet) {
 			exit(EXIT_FAILURE);

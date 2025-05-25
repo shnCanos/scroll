@@ -60,6 +60,64 @@ to *scroll-input*(5) and *scroll-output*(5).
 ## Config only commands
 The following commands may only be used in the configuration file.
 
+*animations* <animations-subcommands...>
+	Subcommands are:
+
+	*enabled* <yes|no>
+	Default value is _yes_. Enables/disables animations globally.
+
+	*frequency_ms* <number>
+	Default is _16_. Number of milliseconds for each animation step. The
+	default is approximately the refresh rate of a monitor that works at 60 Hz.
+	If you need smoother animations, reduce this value. Use with caution to
+	avoid crashes or performance issues. The default should work for most cases
+	unless you have a very high refresh rate monitor.
+
+	*default* enabled [duration] [var animation curve] [off animation curve]
+	Default is default is _yes 300 var 3 [ 0.215 0.61 0.355 1 ]_.
+	Defines the default animation curve. Follows the format explained below.
+
+	*window_move* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows movement (`move` command).
+
+	*window_open* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows opening.
+
+	*window_size* enabled [duration] [var animation curve] [off animation curve]
+	Default is not defined, so it uses _default_ unless you set one up in your
+	config. It is the curve for windows resizing (_cycle_size_, _set_size_,
+	_fit_size_, and _resize_ commands).
+
+	Format of an animation curve:
+
+	The first field is _enabled_. It can be _yes_ or _no_. It enables or
+	disables animations for that operation. If set to _no_, you don't need to
+	define the curve. If set to _yes_, you can set the _duration_ if you
+	want to use the _default_ curve, or define the curves using the following
+	options.
+
+	_duration_ms_. Duration of the animation in milliseconds.
+
+	_var_. Defines the animation curve for the variable changing in the
+	operation/command. The fields are _order_ and _control_points_. _order_
+	defines the order of the Bezier curve that follows, and _control_points_ is
+	an array defining its control points except for the first, that is _(0, 0)_,
+	and the last, _(1, 1)_. The number of values in the array will be
+	_2 x (order - 1)_. A Bezier curve of _order_ needs _order + 1_ control
+	points to be defined, but we set the first and last to _(0, 0)_ and _(1, 1)_.
+	We use 2D Bezier curves, so the array needs _2 x (order - 1)_ numbers in it.
+
+	_off_. Defines the animation curve for the variable that doesn't change in the
+	operation/command. The fields are _scale_ _order_ and _control_points_.
+	_scale_ is the fraction of the workspace size used to scale the curve. As
+	the curve is defined from _(0, 0)_ to _(1, 0)_, we need a parameter to scale
+	the offset value. This parameter does that. For example, using a small parameter
+	like _0.05_, creates offsets of an order of 5% of the size of the workspace.
+	_order_ and _control_points_ work as in the _var_ case. But this time, the
+	points you will not include are: _(0, 0)_ (first) and _(1, 0)_ (last).
+
 *bar* [<bar-id>] <bar-subcommands...>
 	For details on bar subcommands, see *scroll-bar*(5).
 
@@ -68,7 +126,8 @@ The following commands may only be used in the configuration file.
 
 *fullscreen_movefocus* <true|false>
 	Default value is _true_. Allows you to change focus while in full screen
-	mode. Full screen will follow focus.
+	mode. Full screen will follow focus. You can still use overview/jump to
+	select a new window, and full screen state will follow.
 
 *gesture_scroll_enable* <true|false>
 	Default value is _true_. Enables trackpad layout scrolling.
@@ -252,13 +311,29 @@ set|plus|minus|toggle <amount>
 	This can also be used with criteria to set an idle inhibitor for any
 	existing window or with _for_window_ to set idle inhibitors for future windows.
 
-*jump*
-	Starts an overview mode where all the tiled windows of the visible
-	workspaces fit in their monitors. Each window will have an overlay with
-	the combination of keys that will change focus to each of them and exit
-	jump mode. Pressing any other combination of keys exits jump mode with
-	no change of focus. There are several options to modify the look and
+*jump* [container|workspaces]
+	*jump* with no arguments starts an overview mode where all the windows of
+	the visible	workspaces fit in their monitors. Each window will have an
+	overlay with the combination of keys that will change focus to each of them
+	and exit jump mode. Pressing any other combination of keys exits jump mode
+	with no change of focus. There are several options to modify the look and
 	content of the labels.
+
+	The argument _workspaces_, instead creates an overview of the workspaces
+	available on each monitor for a quick preview and navigation to any workspace.
+
+	_container_ creates an overview of the windows of the active column
+	(horizontal layout) or row (vertical layout), so you can quickly jump to
+	any of them. It is a good replacement to tabbed	navigation, because it also
+	shows the content of the windows.
+
+*layout_transpose*
+	Allows you to change from one type of layout to the other at runtime. For
+	example, you want to move your current workspace from a landscape monitor
+	to one in portrait mode: *move* the workspace, and then call
+	*layout_transpose*; it will change your existing layout from a row of
+	columns to a column of rows, keeping all your windows in the same relative
+	positions. You can undo it by calling *layout_transpose* again.
 
 *max_render_time* off|<msec>
 	Controls when the relevant application is told to render this window, as a
@@ -298,7 +373,7 @@ set|plus|minus|toggle <amount>
 	the per-output *allow_tearing* setting. See *scroll-output*(5) 
 	for further details.
 
-*move* left|right|up|down|beinning}end [<px> px] [nomode]
+*move* left|right|up|down|beinning|end [<px> px] [nomode]
 	Moves the focused container in the direction specified. The optional _px_
 	argument specifies how many pixels to move the container if it is floating.
 	If unspecified,	the default is 10 pixels. Pixels are ignored when moving
@@ -379,6 +454,25 @@ set|plus|minus|toggle <amount>
 	A no operation command that can be used to override default behaviour. The
 	optional comment argument is ignored, but logged for debugging purposes.
 
+*pin* top-level container to <beginning|end>
+	Pins a tiled top level container to either edge of the workspace. This may
+	be useful when you have a very wide monitor, or you want to keep a column
+	visible at all times. You may want to have some documentation or terminal
+	always visible.
+
+	It will *pin* the active top level container. For horizontal layouts, it
+	will pin it to the left (_beginning_) or right (_end_) edge of the monitor.
+	For	vertical layouts, to the top (_beginning_) or bottom (_end_) edge.
+	*pin* works as a toggle, and there can only be one pin per workspace. The
+	logic is as follows when you call *pin*:
+
+	1. If the current container is already pinned: if you call *pin* with the
+	same argument of the current pin, it will be unset and the container freed
+	from its pin. If the argument is different, it will move the pinned
+	container to the other position.
+	2. If the current container is not pinned yet: it will replace the pinned
+	container, if any.
+
 *reload*
 	Reloads the scroll config file and applies any changes. The config file is
 	located at path specified by the command line arguments when started,
@@ -431,6 +525,37 @@ set|plus|minus|toggle <amount>
 *scratchpad* show
 	Shows a window from the scratchpad. Repeatedly using this command will
 	cycle through the windows in the scratchpad.
+
+*selection* toggle|reset|workspace|move
+	This command manages window/container selections. You can select several
+	windows or containers at a time, even in different workspaces and/or
+	from overview mode. Those windows will change the border color to the one
+	specified in the option _client.selected_.
+
+	Use _toggle_ to select/deselect a window (in window mode) or a full
+	container (in top-level mode).
+
+	If you want to clear a selection, instead of "toggling" each
+	window/container, you can call _reset_, which will clear all the selected
+	items.
+
+	Once you have made a selection, you can move those windows to a different
+	workspace or location in the same workspace using _move_.
+	The selection order and column/window configuration will be maintained.
+
+	_workspace_ will add every window of the current workspace to the
+	selection. You can use this when you want to move one workspace to a
+	different one, but keeping windows positions and sizes. Use
+	*selection workspace*, and then *selection move* where you want the
+	windows to appear.
+
+	_move_ uses the current mode modifiers to locate the new containers. So
+	you can place the new containers _before_, _after_, at the
+	beginning (_beg_) or _end_.
+
+	If your new location has a different layout type (for example, vertical
+	instead of horizontal), your containers and windows will adapt, transposing
+	their positions to better fit their new destination.
 
 *set_mode* [<h|v|t> <after|before|end|beg> <focus|nofocus>
 <center_horiz|nocenter_horiz> <center_vert|nocenter_vert>
@@ -521,6 +646,30 @@ set|plus|minus|toggle <amount>
 	Note that markup requires pango to be enabled via the *font* command.
 
 	The default format is "%title".
+
+*trail* new|prev|next|delete|clear|to_selection
+	Manages trails. A _trail_ is a path of trailmarks. A _trailmark_ is an
+	anonymous mark. You can create as many trailmarks as you want in a trail,
+	and as many trails as you want. A view can belong to any number of trails.
+
+	_new_: creates a new trail and makes it the active one.
+	_prev_: makes the previous trail on the list the active one.
+	_next_: makes the next trail on the list the active one.
+	_delete_: deletes the active trail from the list.
+	_clear_: clears all the trailmarks in the active trail.
+	_to_selection_: creates a _selection_ with the trailmarks of the active
+	trail. See *selection* to learn what you can do with them.
+
+*trailmark* toggle|prev|next
+	When you want to navigate to certain windows frequently, you can assign them
+	a trailmark. A trailmark will become an anonymous mark assigned to a trail,
+	and you can navigate the trailmarks of a trail using _prev_ and _next_. This
+	way you can move between frequently used application windows.
+
+	_toggle_: assigns/removes the trailmark from the active window.
+	_prev_: focus the previous trailmarked window on the active trail.
+	_next_: focus the next trailmarked window on the active trail.
+
 
 ## Config or runtime commands
 The following commands may be used either in the configuration file or at
@@ -725,6 +874,19 @@ runtime.
 		but is not directly focused. Defaults to focused_inactive if not
 		specified and does not use the indicator and child_border colors.
 
+	*client.pinned*
+		A pinned column/row.
+
+	*client.pinned_focused*
+		A pinned column/row that is currently focused.
+
+	*client.selected*
+		A selected view/container. See the command *selection*.
+
+	*client.selected_focused*
+		A selected view/container that is currently focused. See the command
+		*selection*.
+
 	*client.placeholder*
 		Ignored (present for i3 compatibility).
 
@@ -798,6 +960,30 @@ The default colors are:
 :  #ffffff
 :  #900000
 :  #900000
+|  *pinned*
+:  #beeeef
+:  #000000
+:  #ffffff
+:  #efeebe
+:  #beeeef
+|  *pinned_focused*
+:  #6e8eef
+:  #000000
+:  #ffffff
+:  #efeebe
+:  #6e8eef
+|  *selected*
+:  #009000
+:  #000000
+:  #ffffff
+:  #00b000
+:  #00b000
+|  *selected_focused*
+:  #009090
+:  #000000
+:  #ffffff
+:  #00b000
+:  #009090
 |  *placeholder*
 :  #000000
 :  #0c0c0c

@@ -105,6 +105,7 @@ struct bar_config *default_bar_config(void) {
 	bar->strip_workspace_name = false;
 	bar->binding_mode_indicator = true;
 	bar->scroller_indicator = true;
+	bar->trails_indicator = true;
 	bar->verbose = false;
 	bar->modifier = get_modifier_mask_by_name("Mod4");
 	bar->status_padding = 1;
